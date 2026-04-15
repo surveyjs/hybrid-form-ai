@@ -49,7 +49,11 @@ interface SurveyPage {
 
 function choiceLabels(choices?: Array<string | SurveyChoice>): string[] {
   if (!choices) return [];
-  return choices.map(c => (typeof c === 'string' ? c : (c.text ?? String(c.value))));
+  return choices.map(c => {
+    if (typeof c === 'string') return c;
+    if (c.text && c.text !== String(c.value)) return `${c.value} (${c.text})`;
+    return String(c.value);
+  });
 }
 
 function choiceValues(choices?: Array<string | SurveyChoice>): string[] {
@@ -59,14 +63,20 @@ function choiceValues(choices?: Array<string | SurveyChoice>): string[] {
 
 function rowLabels(rows?: Array<string | SurveyRow>): string[] {
   if (!rows) return [];
-  return rows.map(r => (typeof r === 'string' ? r : (r.text ?? String(r.value))));
+  return rows.map(r => {
+    if (typeof r === 'string') return r;
+    if (r.text && r.text !== String(r.value)) return `${r.value} (${r.text})`;
+    return String(r.value);
+  });
 }
 
 function columnLabels(columns?: Array<string | SurveyColumn>): string[] {
   if (!columns) return [];
   return columns.map(c => {
     if (typeof c === 'string') return c;
-    return c.text ?? c.name ?? String(c.value ?? '');
+    const key = c.name ?? String(c.value ?? '');
+    if (c.text && c.text !== key) return `${key} (${c.text})`;
+    return key;
   });
 }
 

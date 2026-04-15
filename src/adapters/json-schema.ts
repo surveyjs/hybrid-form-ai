@@ -27,17 +27,19 @@ function describeProperty(name: string, prop: JsonSchemaProperty, required: bool
 }
 
 function jsonSchemaTypeToZod(prop: JsonSchemaProperty): z.ZodTypeAny {
-  if (prop.enum && prop.enum.length >= 2) {
-    const vals = prop.enum.map(String);
-    return z.enum(vals as [string, ...string[]]);
+  if (prop.enum && prop.enum.length > 0) {
+    const literals = prop.enum.map(v => z.literal(v));
+    if (literals.length === 1) return literals[0];
+    return z.union(literals as unknown as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]);
   }
 
   switch (prop.type) {
     case 'string':
       return z.string();
     case 'number':
-    case 'integer':
       return z.number();
+    case 'integer':
+      return z.number().int();
     case 'boolean':
       return z.boolean();
     case 'array': {

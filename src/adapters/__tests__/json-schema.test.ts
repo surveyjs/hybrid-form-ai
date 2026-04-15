@@ -130,6 +130,25 @@ describe('JsonSchemaAdapter.toOutputSchema', () => {
     const schema = adapter.toOutputSchema(basicSchema);
     expect(schema.safeParse({ s: 'hi', n: 1.5, i: 3, b: true }).success).toBe(true);
     expect(schema.safeParse({ s: 1, n: 'x', i: 'y', b: 'z' }).success).toBe(false);
+    // integer rejects non-integers
+    expect(schema.safeParse({ s: 'hi', n: 1.5, i: 3.5, b: true }).success).toBe(false);
+  });
+
+  it('handles numeric enums without stringifying', () => {
+    const numEnumSchema = {
+      type: 'object',
+      properties: {
+        level: { type: 'integer', enum: [1, 2, 3] },
+      },
+      required: ['level'],
+    };
+    const schema = adapter.toOutputSchema(numEnumSchema);
+    expect(schema.safeParse({ level: 1 }).success).toBe(true);
+    expect(schema.safeParse({ level: 2 }).success).toBe(true);
+    // rejects string version of the number
+    expect(schema.safeParse({ level: '1' }).success).toBe(false);
+    // rejects value not in enum
+    expect(schema.safeParse({ level: 4 }).success).toBe(false);
   });
 
   it('handles schema with no required array', () => {

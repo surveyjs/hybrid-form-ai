@@ -118,7 +118,7 @@ describe('SurveyJSAdapter.toPrompt', () => {
       }],
     };
     const prompt = adapter.toPrompt(form);
-    expect(prompt).toContain('Red Color, Green Color, Blue Color');
+    expect(prompt).toContain('red (Red Color), green (Green Color), blue (Blue Color)');
   });
 
   it('shows choice text in prompt for checkbox with {value, text} choices', () => {
@@ -137,15 +137,15 @@ describe('SurveyJSAdapter.toPrompt', () => {
       }],
     };
     const prompt = adapter.toPrompt(form);
-    expect(prompt).toContain('Red Color, Green Color');
+    expect(prompt).toContain('red (Red Color), green (Green Color)');
   });
 
   it('generates prompt for complex form with matrix, rating, checkbox, dropdown', () => {
     const prompt = adapter.toPrompt(complexForm);
     expect(prompt).toContain('"quality"');
     expect(prompt).toContain('matrix');
-    expect(prompt).toContain('Speed, Reliability');
-    expect(prompt).toContain('Poor, Good, Excellent');
+    expect(prompt).toContain('speed (Speed), reliability (Reliability)');
+    expect(prompt).toContain('poor (Poor), good (Good), excellent (Excellent)');
     expect(prompt).toContain('"overall"');
     expect(prompt).toContain('rating');
     expect(prompt).toContain('1 to 10');
