@@ -60,8 +60,8 @@
     "zod": "^3.23.0"
   },
   "peerDependencies": {
-    "openai": "^4.0.0",
     "@anthropic-ai/sdk": "^0.30.0",
+    "openai": "^4.0.0",
     "sharp": "^0.33.0"
   },
   "peerDependenciesMeta": {
@@ -76,13 +76,14 @@
     }
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
     "@types/node": "^20.0.0",
     "eslint": "^9.0.0",
+    "openai": "^4.0.0",
+    "sharp": "^0.33.0",
     "tsup": "^8.0.0",
     "typescript": "^5.5.0",
-    "vitest": "^2.0.0",
-    "openai": "^4.0.0",
-    "@anthropic-ai/sdk": "^0.30.0",
-    "sharp": "^0.33.0"
+    "typescript-eslint": "^8.58.2",
+    "vitest": "^2.0.0"
   }
 }

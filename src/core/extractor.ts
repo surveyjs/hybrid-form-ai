@@ -16,7 +16,7 @@ import type {
  * const result = await extractor.extractFromImage({ image, formDefinition });
  * ```
  */
-export function createExtractor(config: ExtractorConfig) {
+export function createExtractor(_config: ExtractorConfig) {
   return {
     async extractFromImage(
       _input: ExtractFromImageInput
