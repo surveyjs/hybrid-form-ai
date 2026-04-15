@@ -3,4 +3,4 @@ export { detectUniqueId } from './qr';
 export { mergeResponses } from './merging';
 
 export type { UniqueIdResult } from './qr';
-export type { MergeOptions } from './merging';
+export type { MergeOptions, MergedRecord } from './merging';

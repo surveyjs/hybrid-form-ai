@@ -14,3 +14,4 @@ export type {
 
 export type { LLMProvider } from './providers/base';
 export type { FormAdapter } from './adapters/base';
+export type { MergeOptions, MergedRecord } from './utils/merging';
