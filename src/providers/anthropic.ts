@@ -70,8 +70,8 @@ export const anthropic: ProviderFactory = (model = 'claude-sonnet-4-6', _options
         });
 
         const content = response.content
-          .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
-          .map((block) => block.text)
+          .filter((block) => block.type === 'text')
+          .map((block) => ('text' in block ? block.text : ''))
           .join('');
 
         return {
