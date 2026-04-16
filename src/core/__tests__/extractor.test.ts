@@ -162,6 +162,45 @@ describe('createExtractor', () => {
   });
 
   describe('retry logic', () => {
+    it('strips markdown code fences from LLM response before parsing', async () => {
+      const responseData = { firstName: 'John', lastName: 'Doe', email: 'john@test.com' };
+      const fencedContent = '```json\n' + JSON.stringify(responseData) + '\n```';
+      const provider = createMockProvider([{ content: fencedContent }]);
+
+      const extractor = createExtractor({
+        provider,
+        adapter: 'surveyjs',
+        options: { preprocessImage: false },
+      });
+
+      const result = await extractor.extractFromImage({
+        image: TINY_PNG,
+        formDefinition: simpleSurveyDef,
+      });
+
+      expect(result.data).toEqual(responseData);
+      expect(provider.extractFromImage).toHaveBeenCalledTimes(1);
+    });
+
+    it('strips markdown code fences without language tag', async () => {
+      const responseData = { firstName: 'Jane', lastName: 'Smith', age: 25 };
+      const fencedContent = '```\n' + JSON.stringify(responseData) + '\n```';
+      const provider = createMockProvider([{ content: fencedContent }]);
+
+      const extractor = createExtractor({
+        provider,
+        adapter: 'json-schema',
+        options: { preprocessImage: false },
+      });
+
+      const result = await extractor.extractFromImage({
+        image: TINY_PNG,
+        formDefinition: simpleJsonSchemaDef,
+      });
+
+      expect(result.data).toEqual(responseData);
+    });
+
     it('retries on invalid JSON and succeeds', async () => {
       const validResponse = { firstName: 'John', lastName: 'Doe', email: null };
       const provider = createMockProvider([

@@ -101,10 +101,13 @@ export function createExtractor(config: ExtractorConfig) {
 
           const rawContent = response.content;
 
+          // Strip markdown code fences (e.g. ```json ... ```) that LLMs may wrap around JSON
+          const jsonContent = rawContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+
           // Parse JSON response
           let parsed: Record<string, unknown>;
           try {
-            parsed = JSON.parse(rawContent);
+            parsed = JSON.parse(jsonContent);
           } catch {
             throw new Error(`Invalid JSON in LLM response: ${rawContent.slice(0, 200)}`);
           }
