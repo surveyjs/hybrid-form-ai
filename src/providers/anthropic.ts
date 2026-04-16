@@ -29,7 +29,8 @@ function toBase64(image: ImageInput): { data: string; mediaType: AnthropicMediaT
  * const provider = anthropic('claude-4-sonnet');
  * ```
  */
-export const anthropic: ProviderFactory = (model = 'claude-4-sonnet', _options = {}) => {
+export const anthropic: ProviderFactory = (model = 'claude-sonnet-4-6', _options = {}) => {
+  const maxTokens = (typeof _options.maxTokens === 'number' && _options.maxTokens > 0) ? _options.maxTokens : 16384;
   const provider: LLMProvider = {
     name: 'anthropic',
     model,
@@ -52,7 +53,7 @@ export const anthropic: ProviderFactory = (model = 'claude-4-sonnet', _options =
       try {
         const response = await client.messages.create({
           model,
-          max_tokens: 4096,
+          max_tokens: maxTokens,
           system: params.systemPrompt ?? '',
           messages: [
             {

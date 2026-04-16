@@ -33,9 +33,9 @@ describe('Provider factories', () => {
   });
 
   it('anthropic returns a provider with correct name and model', () => {
-    const provider = anthropic('claude-4-sonnet');
+    const provider = anthropic('claude-sonnet-4-6');
     expect(provider.name).toBe('anthropic');
-    expect(provider.model).toBe('claude-4-sonnet');
+    expect(provider.model).toBe('claude-sonnet-4-6');
   });
 
   it('ollama returns a provider with correct name and model', () => {
@@ -147,7 +147,7 @@ describe('Anthropic provider', () => {
       usage: { input_tokens: 200, output_tokens: 30 },
     });
 
-    const provider = anthropic('claude-4-sonnet');
+    const provider = anthropic('claude-sonnet-4-6');
     const result = await provider.extractFromImage({
       image: fakeImage,
       prompt: fakePrompt,
@@ -159,7 +159,8 @@ describe('Anthropic provider', () => {
 
     // Verify request shape
     const call = mockAnthropicCreate.mock.calls[0][0];
-    expect(call.model).toBe('claude-4-sonnet');
+    expect(call.model).toBe('claude-sonnet-4-6');
+    expect(call.max_tokens).toBe(16384);
     expect(call.system).toBe(fakeSystemPrompt);
     expect(call.messages[0].role).toBe('user');
     expect(call.messages[0].content[0].type).toBe('image');
@@ -167,9 +168,22 @@ describe('Anthropic provider', () => {
     expect(call.messages[0].content[1].type).toBe('text');
   });
 
+  it('respects maxTokens option', async () => {
+    mockAnthropicCreate.mockResolvedValue({
+      content: [{ type: 'text', text: '{}' }],
+      usage: { input_tokens: 10, output_tokens: 5 },
+    });
+
+    const provider = anthropic('claude-sonnet-4-6', { maxTokens: 8192 });
+    await provider.extractFromImage({ image: fakeImage, prompt: fakePrompt });
+
+    const call = mockAnthropicCreate.mock.calls[0][0];
+    expect(call.max_tokens).toBe(8192);
+  });
+
   it('throws when ANTHROPIC_API_KEY is not set', async () => {
     delete process.env.ANTHROPIC_API_KEY;
-    const provider = anthropic('claude-4-sonnet');
+    const provider = anthropic('claude-sonnet-4-6');
     await expect(
       provider.extractFromImage({ image: fakeImage, prompt: fakePrompt }),
     ).rejects.toThrow('ANTHROPIC_API_KEY environment variable is not set');
@@ -177,7 +191,7 @@ describe('Anthropic provider', () => {
 
   it('wraps API errors with descriptive message', async () => {
     mockAnthropicCreate.mockRejectedValue(new Error('Invalid API key'));
-    const provider = anthropic('claude-4-sonnet');
+    const provider = anthropic('claude-sonnet-4-6');
     await expect(
       provider.extractFromImage({ image: fakeImage, prompt: fakePrompt }),
     ).rejects.toThrow('Anthropic API error: Invalid API key');
@@ -192,7 +206,7 @@ describe('Anthropic provider', () => {
       usage: { input_tokens: 10, output_tokens: 5 },
     });
 
-    const provider = anthropic('claude-4-sonnet');
+    const provider = anthropic('claude-sonnet-4-6');
     const result = await provider.extractFromImage({ image: fakeImage, prompt: fakePrompt });
     expect(result.content).toBe('{"a":1}');
   });
@@ -203,7 +217,7 @@ describe('Anthropic provider', () => {
       usage: { input_tokens: 10, output_tokens: 5 },
     });
 
-    const provider = anthropic('claude-4-sonnet');
+    const provider = anthropic('claude-sonnet-4-6');
     const dataUrl = 'data:image/jpeg;charset=utf-8;base64,/9j/4AAQ';
     const result = await provider.extractFromImage({ image: dataUrl, prompt: fakePrompt });
     expect(result.content).toBe('{}');
