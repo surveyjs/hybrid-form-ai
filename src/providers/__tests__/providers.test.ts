@@ -144,6 +144,7 @@ describe('Anthropic provider', () => {
   it('sends correct request shape and returns normalized response', async () => {
     mockAnthropicCreate.mockResolvedValue({
       content: [{ type: 'text', text: '{"name":"Jane"}' }],
+      stop_reason: 'end_turn',
       usage: { input_tokens: 200, output_tokens: 30 },
     });
 
@@ -155,6 +156,7 @@ describe('Anthropic provider', () => {
     });
 
     expect(result.content).toBe('{"name":"Jane"}');
+    expect(result.truncated).toBe(false);
     expect(result.usage).toEqual({ promptTokens: 200, completionTokens: 30, totalTokens: 230 });
 
     // Verify request shape
@@ -162,15 +164,19 @@ describe('Anthropic provider', () => {
     expect(call.model).toBe('claude-sonnet-4-6');
     expect(call.max_tokens).toBe(16384);
     expect(call.system).toBe(fakeSystemPrompt);
+    expect(call.messages).toHaveLength(1);
     expect(call.messages[0].role).toBe('user');
     expect(call.messages[0].content[0].type).toBe('image');
     expect(call.messages[0].content[0].source.type).toBe('base64');
     expect(call.messages[0].content[1].type).toBe('text');
+    // Verify JSON-only instruction appended to prompt
+    expect(call.messages[0].content[1].text).toContain('Return ONLY the raw JSON object');
   });
 
   it('respects maxTokens option', async () => {
     mockAnthropicCreate.mockResolvedValue({
       content: [{ type: 'text', text: '{}' }],
+      stop_reason: 'end_turn',
       usage: { input_tokens: 10, output_tokens: 5 },
     });
 
@@ -203,6 +209,7 @@ describe('Anthropic provider', () => {
         { type: 'text', text: '{"a":' },
         { type: 'text', text: '1}' },
       ],
+      stop_reason: 'end_turn',
       usage: { input_tokens: 10, output_tokens: 5 },
     });
 
@@ -214,6 +221,7 @@ describe('Anthropic provider', () => {
   it('parses data URLs with extra parameters', async () => {
     mockAnthropicCreate.mockResolvedValue({
       content: [{ type: 'text', text: '{}' }],
+      stop_reason: 'end_turn',
       usage: { input_tokens: 10, output_tokens: 5 },
     });
 
@@ -225,6 +233,19 @@ describe('Anthropic provider', () => {
     const call = mockAnthropicCreate.mock.calls[0][0];
     expect(call.messages[0].content[0].source.media_type).toBe('image/jpeg');
     expect(call.messages[0].content[0].source.data).toBe('/9j/4AAQ');
+  });
+
+  it('sets truncated flag when stop_reason is max_tokens', async () => {
+    mockAnthropicCreate.mockResolvedValue({
+      content: [{ type: 'text', text: '{"name":"Jan' }],
+      stop_reason: 'max_tokens',
+      usage: { input_tokens: 200, output_tokens: 100 },
+    });
+
+    const provider = anthropic('claude-sonnet-4-6');
+    const result = await provider.extractFromImage({ image: fakeImage, prompt: fakePrompt });
+    expect(result.truncated).toBe(true);
+    expect(result.content).toBe('{"name":"Jan');
   });
 });
 

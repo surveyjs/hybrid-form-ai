@@ -43,6 +43,87 @@ const SYSTEM_PROMPT =
   'If a field is not visible or unreadable, use null.';
 
 /**
+ * Extracts JSON content from an LLM response that may contain markdown
+ * code fences and/or preamble/postamble text.
+ *
+ * Strategies (in order):
+ * 1. Extract content from markdown code fences (```json ... ``` or ``` ... ```)
+ * 2. Strip leading/trailing fences (original behavior)
+ * 3. Find the first { ... } or [ ... ] JSON block in the text
+ * 4. Return the raw content as-is (let JSON.parse handle the error)
+ */
+export function extractJsonFromResponse(raw: string): string {
+  const trimmed = raw.trim();
+
+  // Strategy 1: Extract from markdown code fences anywhere in the response
+  const fenceMatch = trimmed.match(/```(?:json)?\s*\n([\s\S]*?)\n```/i);
+  if (fenceMatch) {
+    return fenceMatch[1].trim();
+  }
+
+  // Strategy 2: Strip leading/trailing fences (handles responses that are only a fenced block)
+  const stripped = trimmed.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+  if (stripped !== trimmed) {
+    return stripped.trim();
+  }
+
+  // Strategy 3: Find the outermost JSON object or array in the text
+  const braceStart = trimmed.indexOf('{');
+  const bracketStart = trimmed.indexOf('[');
+  let jsonStart = -1;
+  let openChar = '{';
+  let closeChar = '}';
+
+  if (braceStart === -1 && bracketStart === -1) {
+    return trimmed;
+  } else if (braceStart === -1) {
+    jsonStart = bracketStart;
+    openChar = '[';
+    closeChar = ']';
+  } else if (bracketStart === -1) {
+    jsonStart = braceStart;
+  } else if (bracketStart < braceStart) {
+    jsonStart = bracketStart;
+    openChar = '[';
+    closeChar = ']';
+  } else {
+    jsonStart = braceStart;
+  }
+
+  // Find the matching closing brace/bracket by counting nesting depth,
+  // skipping characters inside JSON strings
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = jsonStart; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\' && inString) {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === openChar) depth++;
+    if (ch === closeChar) {
+      depth--;
+      if (depth === 0) {
+        return trimmed.slice(jsonStart, i + 1);
+      }
+    }
+  }
+
+  // Strategy 4: Return as-is
+  return trimmed;
+}
+
+/**
  * Creates a configured extractor instance.
  *
  * @example
@@ -101,8 +182,16 @@ export function createExtractor(config: ExtractorConfig) {
 
           const rawContent = response.content;
 
-          // Strip markdown code fences (e.g. ```json ... ```) that LLMs may wrap around JSON
-          const jsonContent = rawContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+          // Check for truncated response (e.g. Anthropic max_tokens reached)
+          if (response.truncated) {
+            throw new Error(
+              'LLM response was truncated (token limit reached). The JSON output is incomplete.'
+            );
+          }
+
+          // Extract JSON from the LLM response, handling markdown fences
+          // and preamble/postamble text that some providers (e.g. Anthropic) add
+          const jsonContent = extractJsonFromResponse(rawContent);
 
           // Parse JSON response
           let parsed: Record<string, unknown>;
@@ -193,7 +282,10 @@ export function createExtractor(config: ExtractorConfig) {
           errors.push(`Attempt ${attempt + 1}: ${message}`);
 
           if (attempt < maxRetries) {
-            prompt = `${basePrompt}\n\nYour previous response was invalid: ${message}. Please return valid JSON.`;
+            const isTruncation = message.includes('truncated');
+            prompt = isTruncation
+              ? `${basePrompt}\n\nIMPORTANT: Your previous response was cut off because it was too long. Return ONLY the JSON object. Do NOT include any explanation, markdown formatting, or code fences. Be as concise as possible while including ALL fields.`
+              : `${basePrompt}\n\nYour previous response was invalid: ${message}. Please return valid JSON.`;
           }
         }
       }

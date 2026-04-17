@@ -10,7 +10,7 @@ const TINY_PNG = Buffer.from(
   'base64',
 );
 
-function createMockProvider(responses: Array<{ content: string; usage?: { promptTokens: number; completionTokens: number; totalTokens: number } }>): LLMProvider {
+function createMockProvider(responses: Array<{ content: string; truncated?: boolean; usage?: { promptTokens: number; completionTokens: number; totalTokens: number } }>): LLMProvider {
   let callIndex = 0;
   return {
     name: 'mock',
@@ -201,6 +201,50 @@ describe('createExtractor', () => {
       expect(result.data).toEqual(responseData);
     });
 
+    it('extracts JSON from response with preamble text and fences', async () => {
+      const responseData = { firstName: 'John', lastName: 'Doe', email: 'john@test.com' };
+      const responseWithPreamble =
+        "Here is the extracted data:\n\n```json\n" +
+        JSON.stringify(responseData) +
+        "\n```\n\nLet me know if you need anything else.";
+      const provider = createMockProvider([{ content: responseWithPreamble }]);
+
+      const extractor = createExtractor({
+        provider,
+        adapter: 'surveyjs',
+        options: { preprocessImage: false },
+      });
+
+      const result = await extractor.extractFromImage({
+        image: TINY_PNG,
+        formDefinition: simpleSurveyDef,
+      });
+
+      expect(result.data).toEqual(responseData);
+      expect(provider.extractFromImage).toHaveBeenCalledTimes(1);
+    });
+
+    it('extracts bare JSON after preamble text (no fences)', async () => {
+      const responseData = { firstName: 'John', lastName: 'Doe', email: 'john@test.com' };
+      const responseWithPreamble =
+        "Based on my analysis:\n" + JSON.stringify(responseData);
+      const provider = createMockProvider([{ content: responseWithPreamble }]);
+
+      const extractor = createExtractor({
+        provider,
+        adapter: 'surveyjs',
+        options: { preprocessImage: false },
+      });
+
+      const result = await extractor.extractFromImage({
+        image: TINY_PNG,
+        formDefinition: simpleSurveyDef,
+      });
+
+      expect(result.data).toEqual(responseData);
+      expect(provider.extractFromImage).toHaveBeenCalledTimes(1);
+    });
+
     it('retries on invalid JSON and succeeds', async () => {
       const validResponse = { firstName: 'John', lastName: 'Doe', email: null };
       const provider = createMockProvider([
@@ -285,6 +329,54 @@ describe('createExtractor', () => {
         })
       ).rejects.toThrow('Extraction failed after 1 attempts');
       expect(provider.extractFromImage).toHaveBeenCalledTimes(1);
+    });
+
+    it('detects truncated response and retries with concise prompt', async () => {
+      const validResponse = { firstName: 'John', lastName: 'Doe', email: 'john@test.com' };
+      const provider = createMockProvider([
+        { content: '{"firstName": "John", "lastName": "Doe', truncated: true },
+        { content: JSON.stringify(validResponse) },
+      ]);
+
+      const extractor = createExtractor({
+        provider,
+        adapter: 'surveyjs',
+        options: { preprocessImage: false, maxRetries: 2 },
+      });
+
+      const result = await extractor.extractFromImage({
+        image: TINY_PNG,
+        formDefinition: simpleSurveyDef,
+      });
+
+      expect(result.data).toEqual(validResponse);
+      expect(provider.extractFromImage).toHaveBeenCalledTimes(2);
+
+      // Second call should include truncation-specific guidance
+      const secondCall = (provider.extractFromImage as ReturnType<typeof vi.fn>).mock.calls[1][0];
+      expect(secondCall.prompt).toContain('previous response was cut off');
+      expect(secondCall.prompt).toContain('ONLY the JSON object');
+    });
+
+    it('fails after all retries when response is always truncated', async () => {
+      const provider = createMockProvider([
+        { content: '{"firstName": "Jo', truncated: true },
+        { content: '{"firstName": "Jo', truncated: true },
+        { content: '{"firstName": "Jo', truncated: true },
+      ]);
+
+      const extractor = createExtractor({
+        provider,
+        adapter: 'surveyjs',
+        options: { preprocessImage: false, maxRetries: 2 },
+      });
+
+      await expect(
+        extractor.extractFromImage({
+          image: TINY_PNG,
+          formDefinition: simpleSurveyDef,
+        })
+      ).rejects.toThrow('Extraction failed after 3 attempts');
     });
   });
 

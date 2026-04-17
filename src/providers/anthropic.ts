@@ -63,11 +63,13 @@ export const anthropic: ProviderFactory = (model = 'claude-sonnet-4-6', _options
                   type: 'image',
                   source: { type: 'base64', media_type: mediaType, data },
                 },
-                { type: 'text', text: params.prompt },
+                { type: 'text', text: params.prompt + '\n\nIMPORTANT: Return ONLY the raw JSON object. Do NOT include any explanation, markdown formatting, or code fences.' },
               ],
             },
           ],
         });
+
+        const truncated = response.stop_reason === 'max_tokens';
 
         const content = response.content
           .filter((block) => block.type === 'text')
@@ -76,6 +78,7 @@ export const anthropic: ProviderFactory = (model = 'claude-sonnet-4-6', _options
 
         return {
           content,
+          truncated,
           usage: response.usage
             ? {
                 promptTokens: response.usage.input_tokens ?? 0,

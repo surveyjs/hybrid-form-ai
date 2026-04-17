@@ -20,6 +20,7 @@ export interface LLMProvider {
 
 export interface LLMResponse {
   content: string;
+  truncated?: boolean;
   usage?: {
     promptTokens: number;
     completionTokens: number;
