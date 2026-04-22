@@ -47,40 +47,69 @@ interface SurveyPage {
   elements?: SurveyElement[];
 }
 
-function normalizeMultipleTextItemKey(key: string): string {
+function normalizeNameTitleKey(key: string): string {
   return key.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-function normalizeMultipleTextValue(
+function mapNameTitleKeys(
   value: unknown,
-  items?: Array<{ name: string; title?: string }>,
+  entries?: Array<{ name: string; title?: string }>,
 ): unknown {
-  if (!value || typeof value !== 'object' || Array.isArray(value) || !items || items.length === 0) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !entries || entries.length === 0) {
     return value;
   }
 
   const keyMap = new Map<string, string>();
-  for (const item of items) {
-    keyMap.set(item.name, item.name);
-    keyMap.set(normalizeMultipleTextItemKey(item.name), item.name);
-    if (item.title) {
-      keyMap.set(item.title, item.name);
-      keyMap.set(normalizeMultipleTextItemKey(item.title), item.name);
+  for (const entry of entries) {
+    keyMap.set(entry.name, entry.name);
+    keyMap.set(normalizeNameTitleKey(entry.name), entry.name);
+    if (entry.title) {
+      keyMap.set(entry.title, entry.name);
+      keyMap.set(normalizeNameTitleKey(entry.title), entry.name);
     }
   }
 
   const input = value as Record<string, unknown>;
   const normalized: Record<string, unknown> = {};
   for (const [rawKey, rawValue] of Object.entries(input)) {
-    const mapped = keyMap.get(rawKey) ?? keyMap.get(normalizeMultipleTextItemKey(rawKey));
+    const mapped = keyMap.get(rawKey) ?? keyMap.get(normalizeNameTitleKey(rawKey));
     if (mapped) {
-      normalized[mapped] = rawValue;
+      // Prefer explicit name keys when both name and title variants are present.
+      if (!(mapped in normalized) || rawKey === mapped) {
+        normalized[mapped] = rawValue;
+      }
     } else {
       normalized[rawKey] = rawValue;
     }
   }
 
   return normalized;
+}
+
+function normalizeSurveyResponseByNameTitle(
+  value: unknown,
+  elements: SurveyElement[],
+): unknown {
+  const rootMapped = mapNameTitleKeys(
+    value,
+    elements.map((el) => ({ name: el.name, title: el.title })),
+  );
+
+  if (!rootMapped || typeof rootMapped !== 'object' || Array.isArray(rootMapped)) {
+    return rootMapped;
+  }
+
+  const normalizedRoot = { ...(rootMapped as Record<string, unknown>) };
+
+  for (const el of elements) {
+    if (el.type !== 'multipletext' || !el.items || el.items.length === 0) {
+      continue;
+    }
+    const current = normalizedRoot[el.name];
+    normalizedRoot[el.name] = mapNameTitleKeys(current, el.items);
+  }
+
+  return normalizedRoot;
 }
 
 function choiceLabels(choices?: Array<string | SurveyChoice>): string[] {
@@ -321,7 +350,7 @@ function elementToZod(el: SurveyElement): z.ZodTypeAny | null {
       }
 
       return z.preprocess(
-        (value) => normalizeMultipleTextValue(value, el.items),
+        (value) => mapNameTitleKeys(value, el.items),
         z.object(
           Object.fromEntries(el.items.map((item) => [item.name, z.string().optional()]))
         ).strict(),
@@ -372,6 +401,16 @@ export class SurveyJSAdapter implements FormAdapter {
       if (!zodType) continue;
       shape[el.name] = el.isRequired ? zodType : zodType.optional();
     }
+
     return z.object(shape);
+  }
+
+  normalizeResponseData(
+    formDefinition: Record<string, unknown>,
+    data: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const pages = formDefinition.pages as SurveyPage[] | undefined;
+    const elements = flattenElements(collectElements(pages));
+    return normalizeSurveyResponseByNameTitle(data, elements) as Record<string, unknown>;
   }
 }

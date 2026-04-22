@@ -54,6 +54,26 @@ const multipleTextSurveyDef = {
   ],
 };
 
+const titleMappedSurveyDef = {
+  pages: [
+    {
+      elements: [
+        { type: 'text', name: 'firstName', title: 'First Name', isRequired: true },
+        {
+          type: 'multipletext',
+          name: 'contacts',
+          title: 'Contact Information',
+          isRequired: true,
+          items: [
+            { name: 'phone', title: 'Phone Number' },
+            { name: 'fax', title: 'Fax Number' },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 const simpleJsonSchemaDef = {
   type: 'object',
   properties: {
@@ -203,6 +223,39 @@ describe('createExtractor', () => {
       });
 
       expect(result.data).toEqual({
+        contacts: {
+          phone: '123-456-7890',
+          fax: '555-1234',
+        },
+      });
+    });
+
+    it('normalizes question title keys and multipletext item title keys to names', async () => {
+      const provider = createMockProvider([
+        {
+          content: JSON.stringify({
+            'First Name': 'John',
+            'Contact Information': {
+              'Phone Number': '123-456-7890',
+              'Fax Number': '555-1234',
+            },
+          }),
+        },
+      ]);
+
+      const extractor = createExtractor({
+        provider,
+        adapter: 'surveyjs',
+        options: { preprocessImage: false },
+      });
+
+      const result = await extractor.extractFromImage({
+        image: TINY_PNG,
+        formDefinition: titleMappedSurveyDef,
+      });
+
+      expect(result.data).toEqual({
+        firstName: 'John',
         contacts: {
           phone: '123-456-7890',
           fax: '555-1234',

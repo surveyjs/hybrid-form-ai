@@ -625,4 +625,76 @@ describe('SurveyJSAdapter.toOutputSchema', () => {
 
     expect(result.data.contacts).toEqual({ phone: '123', fax: '456' });
   });
+
+  it('maps question titles to question names in parsed output', () => {
+    const form = {
+      pages: [{
+        name: 'page1',
+        elements: [
+          { type: 'text', name: 'firstName', title: 'First Name', isRequired: true },
+          { type: 'text', name: 'lastName', title: 'Last Name', isRequired: true },
+        ],
+      }],
+    };
+
+    const normalized = adapter.normalizeResponseData(form, {
+      'First Name': 'John',
+      'Last Name': 'Doe',
+    });
+
+    const schema = adapter.toOutputSchema(form);
+    const result = schema.safeParse(normalized);
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error('Expected question title mapping to succeed');
+    }
+
+    expect(result.data).toEqual({ firstName: 'John', lastName: 'Doe' });
+  });
+
+  it('maps both question titles and multipletext item titles to names', () => {
+    const form = {
+      pages: [{
+        name: 'page1',
+        elements: [
+          { type: 'text', name: 'firstName', title: 'First Name', isRequired: true },
+          {
+            type: 'multipletext',
+            name: 'contacts',
+            title: 'Contact Information',
+            isRequired: true,
+            items: [
+              { name: 'phone', title: 'Phone Number' },
+              { name: 'fax', title: 'Fax Number' },
+            ],
+          },
+        ],
+      }],
+    };
+
+    const normalized = adapter.normalizeResponseData(form, {
+      'First Name': 'John',
+      'Contact Information': {
+        'Phone Number': '123',
+        'Fax Number': '456',
+      },
+    });
+
+    const schema = adapter.toOutputSchema(form);
+    const result = schema.safeParse(normalized);
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error('Expected combined title mapping to succeed');
+    }
+
+    expect(result.data).toEqual({
+      firstName: 'John',
+      contacts: {
+        phone: '123',
+        fax: '456',
+      },
+    });
+  });
 });

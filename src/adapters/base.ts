@@ -17,4 +17,9 @@ export interface FormAdapter {
    * Return a Zod schema for validating LLM output.
    */
   toOutputSchema(formDefinition: Record<string, unknown>): ZodType;
+
+  /**
+   * Optionally normalize raw LLM JSON before schema validation.
+   */
+  normalizeResponseData?(formDefinition: Record<string, unknown>, data: Record<string, unknown>): Record<string, unknown>;
 }
