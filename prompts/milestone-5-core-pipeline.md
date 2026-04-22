@@ -30,6 +30,7 @@ Wire up the full end-to-end extraction pipeline in `createExtractor()`.
        - "You are a document data extraction assistant"
        - "Extract field values from the scanned form image"
        - "Return valid JSON only, using canonical schema keys/values (`name`/`value`)"
+      - "For `signaturepad` fields, return Base64-encoded image strings"
        - "For each field, include your confidence (0.0-1.0) in a parallel `_confidence` object"
        - "If a field is not visible or unreadable, use null"
 

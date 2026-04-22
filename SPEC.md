@@ -90,6 +90,7 @@ console.log(result.data);               // Structured responses matching form sc
   - Matrix column keys: column `title`/`text` -> column `name` (or `value` when `name` is absent)
   - Matrix row keys: row `text` -> row `value`
   - Choice values for `radiogroup`, `dropdown`, `checkbox`, `tagbox`, `ranking`, `imagepicker`: display `text` -> canonical `value`
+  - `signaturepad` fields: captured signature image -> Base64 string value
 - **JSON Schema Adapter**: Support for standard JSON Schema.
 - **Custom Adapter**: Simple interface for users to define their own mapping.
 

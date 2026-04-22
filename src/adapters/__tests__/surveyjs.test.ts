@@ -315,6 +315,22 @@ describe('SurveyJSAdapter.toPrompt', () => {
     expect(adapter.toPrompt({ pages: [] })).toBe('');
     expect(adapter.toPrompt({})).toBe('');
   });
+
+  it('describes signaturepad as base64 string field', () => {
+    const form = {
+      pages: [{
+        name: 'page1',
+        elements: [
+          { type: 'signaturepad', name: 'customerSignature', title: 'Customer Signature', isRequired: true },
+        ],
+      }],
+    };
+
+    const prompt = adapter.toPrompt(form);
+    expect(prompt).toContain('"customerSignature"');
+    expect(prompt).toContain('signature pad');
+    expect(prompt).toContain('base64-encoded image string');
+  });
 });
 
 // ─── toOutputSchema tests ───────────────────────────────────────
@@ -401,6 +417,21 @@ describe('SurveyJSAdapter.toOutputSchema', () => {
     expect(keys).not.toContain('info');
     expect(keys).not.toContain('pic');
     expect(keys).not.toContain('doc');
+  });
+
+  it('handles signaturepad as base64 string', () => {
+    const form = {
+      pages: [{
+        name: 'page1',
+        elements: [
+          { type: 'signaturepad', name: 'customerSignature', title: 'Customer Signature', isRequired: true },
+        ],
+      }],
+    };
+
+    const schema = adapter.toOutputSchema(form);
+    expect(schema.safeParse({ customerSignature: 'iVBORw0KGgoAAAANSUhEUgAAAAUA' }).success).toBe(true);
+    expect(schema.safeParse({ customerSignature: 123 }).success).toBe(false);
   });
 
   it('maps inputType=number to z.number()', () => {

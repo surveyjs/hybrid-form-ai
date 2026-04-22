@@ -33,6 +33,7 @@ Implement SurveyJS and JSON Schema adapters that convert form definitions into L
   - `imagepicker` — single or multiple choice from image options (extract by choice value/text)
   - `imagemap` — clickable regions on an image (extract selected region names)
   - `slider` — numeric slider with min/max/step (extract numeric value)
+  - `signaturepad` — signature image capture (extract as Base64 string)
   - `boolean` — true/false toggle
   - `signature` — skip (handwritten signature, cannot reliably extract as data)
   - `html` — skip (display-only, no data to extract)
@@ -44,6 +45,7 @@ Implement SurveyJS and JSON Schema adapters that convert form definitions into L
 - Include clear instructions about expected value formats per type
 - Clarify canonical output expectations in the prompt and schema notes:
   - Use question `name` as the canonical key even when the form shows a `title`
+  - For `signaturepad`, return a Base64-encoded image string value
   - For `multipletext`, use item `name` keys even if extracted labels use item `title`
   - For matrix types, use canonical row `value` and column `name` (or `value` fallback)
   - For ItemValue arrays (`choices`, `rows`), map display `text` back to canonical `value`
@@ -72,6 +74,7 @@ Implement SurveyJS and JSON Schema adapters that convert form definitions into L
   - `imagepicker` → `z.string()` (single select) or `z.array(z.string())` (multi select)
   - `imagemap` → `z.string()` or `z.array(z.string())` (selected region names)
   - `slider` → `z.number()`
+  - `signaturepad` → `z.string()` (Base64-encoded image string)
   - `signature` → skip
   - `html` → skip
   - `image` → skip

@@ -313,6 +313,12 @@ function describeElement(el: SurveyElement, index: number): string {
     case 'boolean':
       lines.push('   Type: boolean (true/false)', '   Expected value: true or false');
       break;
+    case 'signaturepad':
+      lines.push(
+        '   Type: signature pad',
+        '   Expected value: a base64-encoded image string of the captured signature',
+      );
+      break;
     case 'matrix': {
       const r = rowLabels(el.rows);
       const c = columnLabels(el.columns);
@@ -435,6 +441,8 @@ function elementToZod(el: SurveyElement): z.ZodTypeAny | null {
       return z.number();
     case 'boolean':
       return z.boolean();
+    case 'signaturepad':
+      return z.string();
     case 'matrix':
       return z.record(z.string());
     case 'matrixdynamic':
