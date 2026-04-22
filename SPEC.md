@@ -2,7 +2,7 @@
 
 **Project:** hybrid-form-ai  
 **Version:** 0.1.0 (MVP Draft)  
-**Last Updated:** April 15, 2026  
+**Last Updated:** April 22, 2026  
 **Status:** Living Document — This is the authoritative specification for the project.
 
 ## 1. Overview
@@ -18,8 +18,9 @@ Provide a simple, flexible, and cost-effective open-source alternative to expens
 
 - Generic support for JSON form definitions with **first-class SurveyJS adapter**
 - Swappable multimodal LLM providers (OpenAI, Anthropic, Ollama, and more)
-- Intelligent extraction from scanned/photographed forms (text, checkboxes, tables, handwriting)
+- Intelligent extraction from scanned/photographed forms and digital PDFs (text, checkboxes, tables, handwriting)
 - Automatic unique ID / QR code detection from images
+- Native PDF support for providers that accept PDF documents directly
 - Schema-aware prompting and structured JSON output
 - Confidence scoring and low-confidence field flagging
 - Response merging utility (online + paper responses)
@@ -30,8 +31,8 @@ Provide a simple, flexible, and cost-effective open-source alternative to expens
 ```mermaid
 flowchart TD
     A[Form Definition<br/>(SurveyJS JSON)] --> C[hybrid-form-ai Core]
-    B[Scanned Image / Photo] --> C
-    C --> D[Image Preprocessing + QR/ID Detection]
+    B[Scanned Image / Photo<br/>or Digital PDF] --> C
+    C --> D[Input Preprocessing + QR/ID Detection]
     C --> E[Adapter Layer\n(SurveyJS → Prompt)]
     C --> F[LLM Provider Layer]
     F --> G[Structured Output Parsing]
@@ -57,7 +58,7 @@ const extractor = createExtractor({
 });
 
 const result = await extractor.extractFromImage({
-  image: imageBuffer,                   // Buffer | Uint8Array | string (path or URL)
+  image: imageBuffer,                   // Scanned image, image array, or digital PDF as Buffer | Uint8Array | string (path or URL)
   formDefinition: surveyJson,           // Original SurveyJS JSON
   uniqueIdHint: 'optional-fallback-id'
 });
@@ -66,7 +67,7 @@ console.log(result.data);               // Structured responses matching form sc
 ```
 
 ### Additional Exports
-- `detectUniqueId(image)` – Standalone QR / barcode + text detection
+- `detectUniqueId(image)` – Standalone QR / barcode + text detection from image inputs
 - `mergeResponses(onlineData, paperExtractions)` – Deduplication by unique ID
 
 ## 5. LLM Providers
@@ -94,11 +95,21 @@ console.log(result.data);               // Structured responses matching form sc
 - **JSON Schema Adapter**: Support for standard JSON Schema.
 - **Custom Adapter**: Simple interface for users to define their own mapping.
 
+## 6.1 Digital PDF Support
+
+- `extractFromImage()` remains the stable API name for backward compatibility.
+- Digital PDFs are passed to providers as native PDF document inputs whenever the provider supports it.
+- The core extractor no longer rasterizes PDF files into page images.
+- Provider capability differs by backend:
+  - OpenAI: uses native PDF document input when PDF media is present.
+  - Anthropic: uses `document` blocks with `application/pdf` media type.
+  - Ollama: current API path is image-only and rejects native PDF with a clear error.
+
 ## 7. Non-Functional Requirements
 
 - Written in **TypeScript** with strong typing
 - Use **Zod** for output schema validation
-- Lightweight dependencies (sharp for image processing, official LLM SDKs)
+- Lightweight dependencies (sharp for optional image preprocessing, official LLM SDKs)
 - Support for Docker and serverless environments
 - Clear error handling and retry logic
 - Optional cost tracking and logging

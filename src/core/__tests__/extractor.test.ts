@@ -15,6 +15,8 @@ const VALID_TINY_PNG = Buffer.from(
   'base64',
 );
 
+const MINIMAL_PDF = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF');
+
 function createMockProvider(responses: Array<{ content: string; truncated?: boolean; usage?: { promptTokens: number; completionTokens: number; totalTokens: number } }>): LLMProvider {
   let callIndex = 0;
   return {
@@ -562,6 +564,31 @@ describe('createExtractor', () => {
       expect(Array.isArray(call.image)).toBe(true);
       expect(call.image).toHaveLength(3);
     });
+
+    it('passes native PDF input through to the provider', async () => {
+      const provider = createMockProvider([
+        {
+          content: JSON.stringify({ firstName: 'John', lastName: 'Doe', email: 'john@test.com' }),
+        },
+      ]);
+
+      const extractor = createExtractor({
+        provider,
+        adapter: 'surveyjs',
+        options: { preprocessImage: false },
+      });
+
+      const result = await extractor.extractFromImage({
+        image: MINIMAL_PDF,
+        formDefinition: simpleSurveyDef,
+      });
+
+      expect(result.data).toEqual({ firstName: 'John', lastName: 'Doe', email: 'john@test.com' });
+
+      const call = (provider.extractFromImage as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(Buffer.isBuffer(call.image)).toBe(true);
+      expect((call.image as Buffer).equals(MINIMAL_PDF)).toBe(true);
+    });
   });
 
   describe('retry logic', () => {
@@ -1053,6 +1080,7 @@ describe('createExtractor', () => {
 
       const call = (provider.extractFromImage as ReturnType<typeof vi.fn>).mock.calls[0][0];
       expect(call.systemPrompt).toContain('document data extraction assistant');
+      expect(call.systemPrompt).toContain('scanned images or native PDF documents');
       expect(call.systemPrompt).toContain('Return valid JSON only');
       expect(call.systemPrompt).toContain('_confidence');
       expect(call.systemPrompt).not.toContain('signaturepad fields');

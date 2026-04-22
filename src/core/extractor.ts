@@ -37,7 +37,7 @@ function resolveAdapter(config: ExtractorConfig): FormAdapter {
 
 const BASE_SYSTEM_PROMPT =
   'You are a document data extraction assistant. ' +
-  'Extract field values from the scanned form image. ' +
+  'Extract field values from the provided form input, which may be scanned images or native PDF documents. ' +
   'Return valid JSON only, matching the specified field names exactly. ' +
   'For each field, include your confidence (0.0-1.0) in a parallel "_confidence" object. ' +
   'If a field is not visible or unreadable, use null.';
@@ -212,7 +212,7 @@ export function createExtractor(config: ExtractorConfig) {
     async extractFromImage(
       input: ExtractFromImageInput
     ): Promise<ExtractionResult> {
-      // 1. Preprocess image (optional)
+      // 1. Preprocess image/pages (optional)
       const image = shouldPreprocess
         ? await preprocessImage(input.image)
         : input.image;
@@ -229,7 +229,7 @@ export function createExtractor(config: ExtractorConfig) {
       // 4. Get output schema for validation
       const outputSchema = adapter.toOutputSchema(input.formDefinition);
 
-      // Retry loop (steps 4-7)
+      // Retry loop (steps 5-8)
       const errors: string[] = [];
       let prompt = basePrompt;
 

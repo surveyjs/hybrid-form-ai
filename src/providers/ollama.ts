@@ -2,20 +2,25 @@ import type { LLMProvider, LLMResponse, ProviderFactory } from './base';
 import type { ImageInput } from '../core/types';
 import { imageInputToBase64Urls, imageToBase64 } from '../utils/image';
 
-async function toBase64String(image: ImageInput): Promise<string> {
-  if (Buffer.isBuffer(image) || image instanceof Uint8Array) {
-    const buffer = Buffer.isBuffer(image) ? image : Buffer.from(image);
-    return buffer.toString('base64');
-  }
-
-  const dataUrl = typeof image === 'string' && image.startsWith('data:')
-    ? image
-    : await imageToBase64(image);
-  const match = dataUrl.match(/^data:[^;,]+[^,]*;base64,(.+)$/);
+function parseDataUrl(dataUrl: string): { mediaType: string; data: string } {
+  const match = dataUrl.match(/^data:([^;,]+)[^,]*;base64,(.+)$/);
   if (!match) {
     throw new Error('Ollama provider requires a base64 data URL, Buffer, Uint8Array, file path, or image array input.');
   }
-  return match[1];
+  return { mediaType: match[1], data: match[2] };
+}
+
+async function toBase64String(image: ImageInput): Promise<string> {
+  const dataUrl = typeof image === 'string' && image.startsWith('data:')
+    ? image
+    : await imageToBase64(image);
+
+  const parsed = parseDataUrl(dataUrl);
+  if (parsed.mediaType === 'application/pdf') {
+    throw new Error('Ollama provider does not support native PDF inputs. Use image pages or a provider with PDF document support.');
+  }
+
+  return parsed.data;
 }
 
 async function toBase64Strings(image: ImageInput): Promise<string[]> {

@@ -2,10 +2,10 @@
  * Core types for hybrid-form-ai
  */
 
-/** Single image input — file path, URL, Buffer, or Uint8Array */
+/** Single document input — scanned image or digital PDF provided as a file path, URL, Buffer, or Uint8Array */
 export type SingleImageInput = string | Buffer | Uint8Array;
 
-/** Image input — a single image or an ordered array of page images */
+/** Extractor input — a single document input or an ordered array of page images/document sources */
 export type ImageInput = SingleImageInput | SingleImageInput[];
 
 /** Per-field confidence score */

@@ -14,6 +14,8 @@ const MINIMAL_JPEG = Buffer.from([
   0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
 ]);
 
+const MINIMAL_PDF = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF');
+
 describe('imageToBase64', () => {
   it('converts a Buffer PNG to a data URL', async () => {
     const result = await imageToBase64(MINIMAL_PNG);
@@ -32,6 +34,11 @@ describe('imageToBase64', () => {
   it('detects JPEG MIME type', async () => {
     const result = await imageToBase64(MINIMAL_JPEG);
     expect(result).toMatch(/^data:image\/jpeg;base64,/);
+  });
+
+  it('detects PDF MIME type', async () => {
+    const result = await imageToBase64(MINIMAL_PDF);
+    expect(result).toMatch(/^data:application\/pdf;base64,/);
   });
 
   it('detects WebP MIME type', async () => {
@@ -124,5 +131,11 @@ describe('preprocessImage', () => {
     expect(result.equals(MINIMAL_PNG)).toBe(true);
 
     vi.doUnmock('sharp');
+  });
+
+  it('keeps PDF unchanged in preprocessing path', async () => {
+    const result = await preprocessImage(MINIMAL_PDF);
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect((result as Buffer).equals(MINIMAL_PDF)).toBe(true);
   });
 });

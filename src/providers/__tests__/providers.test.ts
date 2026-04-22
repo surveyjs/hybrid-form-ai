@@ -5,9 +5,11 @@ import { ollama } from '../ollama';
 
 // ── OpenAI mock ────────────────────────────────────────────────────────
 const mockOpenAICreate = vi.fn();
+const mockOpenAIResponsesCreate = vi.fn();
 vi.mock('openai', () => ({
   default: class {
     chat = { completions: { create: mockOpenAICreate } };
+    responses = { create: mockOpenAIResponsesCreate };
   },
 }));
 
@@ -25,6 +27,7 @@ const fakeImage = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
   'base64',
 );
+const fakePdf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF');
 const fakePrompt = 'Extract form data';
 const fakeSystemPrompt = 'You are a form extractor.';
 
@@ -56,6 +59,7 @@ describe('OpenAI provider', () => {
   beforeEach(() => {
     process.env = { ...originalEnv, OPENAI_API_KEY: 'test-key' };
     mockOpenAICreate.mockReset();
+    mockOpenAIResponsesCreate.mockReset();
   });
 
   afterEach(() => {
@@ -167,6 +171,31 @@ describe('OpenAI provider', () => {
     expect(call.messages[0].content[1].image_url.url).toBe(dataUrls[0]);
     expect(call.messages[0].content[2].image_url.url).toBe(dataUrls[1]);
     expect(call.messages[0].content[3].image_url.url).toBe(dataUrls[2]);
+  });
+
+  it('sends native PDF via responses API input_file blocks', async () => {
+    mockOpenAIResponsesCreate.mockResolvedValue({
+      output_text: '{"name":"Doc User"}',
+      usage: { input_tokens: 120, output_tokens: 35, total_tokens: 155 },
+    });
+
+    const provider = openai('gpt-4o');
+    const result = await provider.extractFromImage({
+      image: fakePdf,
+      prompt: fakePrompt,
+      systemPrompt: fakeSystemPrompt,
+    });
+
+    expect(result.content).toBe('{"name":"Doc User"}');
+    expect(result.usage).toEqual({ promptTokens: 120, completionTokens: 35, totalTokens: 155 });
+    expect(mockOpenAICreate).not.toHaveBeenCalled();
+
+    const call = mockOpenAIResponsesCreate.mock.calls[0][0];
+    expect(call.model).toBe('gpt-4o');
+    expect(call.instructions).toBe(fakeSystemPrompt);
+    expect(call.input[0].content[0].type).toBe('input_text');
+    expect(call.input[0].content[1].type).toBe('input_file');
+    expect(call.input[0].content[1].file_data).toMatch(/^data:application\/pdf;base64,/);
   });
 });
 
@@ -320,6 +349,21 @@ describe('Anthropic provider', () => {
     expect(call.messages[0].content[2].type).toBe('text');
   });
 
+  it('sends native PDF as document block', async () => {
+    mockAnthropicCreate.mockResolvedValue({
+      content: [{ type: 'text', text: '{}' }],
+      stop_reason: 'end_turn',
+      usage: { input_tokens: 10, output_tokens: 5 },
+    });
+
+    const provider = anthropic('claude-sonnet-4-6');
+    await provider.extractFromImage({ image: fakePdf, prompt: fakePrompt });
+
+    const call = mockAnthropicCreate.mock.calls[0][0];
+    expect(call.messages[0].content[0].type).toBe('document');
+    expect(call.messages[0].content[0].source.media_type).toBe('application/pdf');
+  });
+
   it('sets truncated flag when stop_reason is max_tokens', async () => {
     mockAnthropicCreate.mockResolvedValue({
       content: [{ type: 'text', text: '{"name":"Jan' }],
@@ -442,6 +486,14 @@ describe('Ollama provider', () => {
     const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const body = JSON.parse(options.body as string);
     expect(body.messages[0].images).toEqual(['AAA=', 'BBB=', 'CCC=']);
+  });
+
+  it('rejects native PDF input because Ollama API path is image-only', async () => {
+    const provider = ollama('llama-3.2-vision');
+
+    await expect(
+      provider.extractFromImage({ image: fakePdf, prompt: fakePrompt }),
+    ).rejects.toThrow('Ollama provider does not support native PDF inputs');
   });
 
   it('handles connection errors gracefully', async () => {

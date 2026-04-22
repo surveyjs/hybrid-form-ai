@@ -1,5 +1,5 @@
 import type { ImageInput } from '../core/types';
-import { composeImageBuffers, resolveToBuffer } from './resolve-buffer';
+import { resolveToBuffer } from './resolve-buffer';
 
 /**
  * Image preprocessing utilities.
@@ -9,6 +9,9 @@ import { composeImageBuffers, resolveToBuffer } from './resolve-buffer';
 
 /** Detect MIME type from magic bytes */
 function detectMime(buf: Buffer): string {
+  if (buf.length >= 4 && buf.subarray(0, 4).toString('ascii') === '%PDF') {
+    return 'application/pdf';
+  }
   if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
     return 'image/png';
   }
@@ -60,6 +63,9 @@ async function tryLoadSharp(): Promise<any> {
 const MAX_DIMENSION = 2048;
 
 async function preprocessSingleBuffer(buf: Buffer): Promise<Buffer> {
+  // Keep native PDFs unmodified so providers that support document inputs can consume them as-is.
+  if (detectMime(buf) === 'application/pdf') return buf;
+
   const sharp = await tryLoadSharp();
   if (!sharp) return buf;
 

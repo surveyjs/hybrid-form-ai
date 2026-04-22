@@ -492,7 +492,7 @@ export class SurveyJSAdapter implements FormAdapter {
     if (elements.length === 0) return '';
 
     const header =
-      'Extract the following form fields from the provided image and return a JSON object with the field names as keys.\n\nFields:';
+      'Extract the following form fields from the provided document pages and return a JSON object with the field names as keys.\n\nFields:';
     const descriptions = elements.map((el, i) => describeElement(el, i + 1));
     const footer =
       '\nReturn a JSON object with the exact field names listed above as keys and the extracted values.';

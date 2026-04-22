@@ -89,4 +89,28 @@ describe('resolveToBuffer', () => {
     await expect(resolveToBuffer('https://example.com/img.png'))
       .rejects.toThrow('Network failure');
   });
+
+  it('decodes a base64 data URL to Buffer', async () => {
+    const original = Buffer.from('hello pdf');
+    const dataUrl = `data:application/pdf;base64,${original.toString('base64')}`;
+    const result = await resolveToBuffer(dataUrl);
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result.equals(original)).toBe(true);
+  });
+
+  it('rejects an oversized base64 data URL', async () => {
+    // Produce a base64 string whose estimated decoded size exceeds 10MB.
+    // base64 length needed: 10MB * 4/3 ≈ 13,981,014 chars — use 14MB of chars.
+    const oversizedB64 = 'A'.repeat(14 * 1024 * 1024);
+    const dataUrl = `data:application/pdf;base64,${oversizedB64}`;
+    await expect(resolveToBuffer(dataUrl))
+      .rejects.toThrow('exceeds the maximum allowed size');
+  });
+
+  it('rejects an oversized plain-text data URL', async () => {
+    const oversizedPayload = 'x'.repeat(11 * 1024 * 1024);
+    const dataUrl = `data:text/plain,${oversizedPayload}`;
+    await expect(resolveToBuffer(dataUrl))
+      .rejects.toThrow('exceeds the maximum allowed size');
+  });
 });
