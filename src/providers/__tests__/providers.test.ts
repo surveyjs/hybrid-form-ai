@@ -126,6 +126,44 @@ describe('OpenAI provider', () => {
     expect(result.content).toBe('{}');
     expect(result.usage).toBeUndefined();
   });
+
+  it('accepts extractor-generated PNG data URLs unchanged', async () => {
+    mockOpenAICreate.mockResolvedValue({
+      choices: [{ message: { content: '{}' } }],
+      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+    });
+
+    const provider = openai('gpt-4o');
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+    await provider.extractFromImage({ image: dataUrl, prompt: fakePrompt });
+
+    const call = mockOpenAICreate.mock.calls[0][0];
+    expect(call.messages[0].role).toBe('user');
+    expect(call.messages[0].content[1].image_url.url).toBe(dataUrl);
+  });
+
+  it('sends one image block per page for multi-page inputs', async () => {
+    mockOpenAICreate.mockResolvedValue({
+      choices: [{ message: { content: '{}' } }],
+      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+    });
+
+    const provider = openai('gpt-4o');
+    const dataUrls = [
+      'data:image/png;base64,AAA=',
+      'data:image/png;base64,BBB=',
+      'data:image/png;base64,CCC=',
+    ];
+
+    await provider.extractFromImage({ image: dataUrls, prompt: fakePrompt });
+
+    const call = mockOpenAICreate.mock.calls[0][0];
+    expect(call.messages[0].content).toHaveLength(4);
+    expect(call.messages[0].content[1].image_url.url).toBe(dataUrls[0]);
+    expect(call.messages[0].content[2].image_url.url).toBe(dataUrls[1]);
+    expect(call.messages[0].content[3].image_url.url).toBe(dataUrls[2]);
+  });
 });
 
 // ── Anthropic Provider ─────────────────────────────────────────────────
@@ -235,6 +273,28 @@ describe('Anthropic provider', () => {
     expect(call.messages[0].content[0].source.data).toBe('/9j/4AAQ');
   });
 
+  it('sends one image block per page for multi-page inputs', async () => {
+    mockAnthropicCreate.mockResolvedValue({
+      content: [{ type: 'text', text: '{}' }],
+      stop_reason: 'end_turn',
+      usage: { input_tokens: 10, output_tokens: 5 },
+    });
+
+    const provider = anthropic('claude-sonnet-4-6');
+    const dataUrls = [
+      'data:image/png;base64,AAA=',
+      'data:image/png;base64,BBB=',
+    ];
+
+    await provider.extractFromImage({ image: dataUrls, prompt: fakePrompt });
+
+    const call = mockAnthropicCreate.mock.calls[0][0];
+    expect(call.messages[0].content).toHaveLength(3);
+    expect(call.messages[0].content[0].source.data).toBe('AAA=');
+    expect(call.messages[0].content[1].source.data).toBe('BBB=');
+    expect(call.messages[0].content[2].type).toBe('text');
+  });
+
   it('sets truncated flag when stop_reason is max_tokens', async () => {
     mockAnthropicCreate.mockResolvedValue({
       content: [{ type: 'text', text: '{"name":"Jan' }],
@@ -338,6 +398,25 @@ describe('Ollama provider', () => {
     const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     const body = JSON.parse(options.body as string);
     expect(body.messages[0].images[0]).toBe('iVBORw0KGgo');
+  });
+
+  it('sends one image per page for multi-page inputs', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: { content: '{}' } }),
+    }) as unknown as typeof fetch;
+
+    const dataUrls = [
+      'data:image/png;base64,AAA=',
+      'data:image/png;base64,BBB=',
+      'data:image/png;base64,CCC=',
+    ];
+    const provider = ollama('llama-3.2-vision');
+    await provider.extractFromImage({ image: dataUrls, prompt: fakePrompt });
+
+    const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(options.body as string);
+    expect(body.messages[0].images).toEqual(['AAA=', 'BBB=', 'CCC=']);
   });
 
   it('handles connection errors gracefully', async () => {

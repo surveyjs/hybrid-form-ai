@@ -1,16 +1,29 @@
 import type { LLMProvider, LLMResponse, ProviderFactory } from './base';
 import type { ImageInput } from '../core/types';
+import { imageInputToBase64Urls, imageToBase64 } from '../utils/image';
 
-function toBase64String(image: ImageInput): string {
-  if (typeof image === 'string') {
-    const match = image.match(/^data:[^;,]+[^,]*;base64,(.+)$/);
-    if (match) {
-      return match[1];
-    }
-    throw new Error('Ollama provider requires a base64 data URL, Buffer, or Uint8Array. HTTP URLs and file paths are not supported directly.');
+async function toBase64String(image: ImageInput): Promise<string> {
+  if (Buffer.isBuffer(image) || image instanceof Uint8Array) {
+    const buffer = Buffer.isBuffer(image) ? image : Buffer.from(image);
+    return buffer.toString('base64');
   }
-  const buffer = Buffer.isBuffer(image) ? image : Buffer.from(image);
-  return buffer.toString('base64');
+
+  const dataUrl = typeof image === 'string' && image.startsWith('data:')
+    ? image
+    : await imageToBase64(image);
+  const match = dataUrl.match(/^data:[^;,]+[^,]*;base64,(.+)$/);
+  if (!match) {
+    throw new Error('Ollama provider requires a base64 data URL, Buffer, Uint8Array, file path, or image array input.');
+  }
+  return match[1];
+}
+
+async function toBase64Strings(image: ImageInput): Promise<string[]> {
+  if (Array.isArray(image)) {
+    const dataUrls = await imageInputToBase64Urls(image);
+    return Promise.all(dataUrls.map((dataUrl) => toBase64String(dataUrl)));
+  }
+  return [await toBase64String(image)];
 }
 
 /**
@@ -29,7 +42,7 @@ export const ollama: ProviderFactory = (model = 'llama-3.2-vision', _options = {
     async extractFromImage(params): Promise<LLMResponse> {
       const baseUrl = (process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/+$/, '');
       const url = `${baseUrl}/api/chat`;
-      const imageBase64 = toBase64String(params.image);
+      const imageBase64 = await toBase64Strings(params.image);
 
       const messages: Array<{ role: string; content: string; images?: string[] }> = [];
       if (params.systemPrompt) {
@@ -38,7 +51,7 @@ export const ollama: ProviderFactory = (model = 'llama-3.2-vision', _options = {
       messages.push({
         role: 'user',
         content: params.prompt,
-        images: [imageBase64],
+        images: imageBase64,
       });
 
       let response: Response;

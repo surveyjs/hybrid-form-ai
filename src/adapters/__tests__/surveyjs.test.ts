@@ -347,11 +347,12 @@ describe('SurveyJSAdapter.toOutputSchema', () => {
     const withoutOptional = { firstName: 'Jane', gender: 'Female' };
     expect(schema.safeParse(withoutOptional).success).toBe(true);
 
-    // Invalid: missing required field
+    // All fields are optional in the extraction schema (paper forms can have blank required fields).
+    // isRequired is a form-submission concern, not an extraction concern.
     const missingRequired = { gender: 'Male' };
-    expect(schema.safeParse(missingRequired).success).toBe(false);
+    expect(schema.safeParse(missingRequired).success).toBe(true);
 
-    // Invalid: wrong enum value
+    // Invalid: wrong enum value (type errors still caught)
     const badEnum = { firstName: 'John', gender: 'Unknown' };
     expect(schema.safeParse(badEnum).success).toBe(false);
   });
@@ -388,9 +389,9 @@ describe('SurveyJSAdapter.toOutputSchema', () => {
     };
     expect(schema.safeParse(valid).success).toBe(true);
 
-    // Missing required field from inside panel
+    // All fields are optional in the extraction schema — partial paper forms are valid.
     const missingCity = { fullName: 'John', street: '123 Main St', agree: true };
-    expect(schema.safeParse(missingCity).success).toBe(false);
+    expect(schema.safeParse(missingCity).success).toBe(true);
 
     // Optional zip can be omitted
     const noZip = { fullName: 'John', street: '123 Main St', city: 'X', agree: false };

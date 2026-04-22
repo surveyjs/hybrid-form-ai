@@ -38,6 +38,16 @@ const NUMERIC_ID_PATTERN = /\b(?:ID|REF|#)\s*:?\s*(\d{4,})\b/i;
  * Tries QR code detection first, then falls back to regex text patterns.
  */
 export async function detectUniqueId(image: ImageInput): Promise<UniqueIdResult> {
+  if (Array.isArray(image)) {
+    for (const page of image) {
+      const result = await detectUniqueId(page);
+      if (result.id) {
+        return result;
+      }
+    }
+    return { id: null, source: null, confidence: 0 };
+  }
+
   const buf = await resolveToBuffer(image);
   const rgba = await toRGBA(buf);
 

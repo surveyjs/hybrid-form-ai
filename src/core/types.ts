@@ -2,8 +2,11 @@
  * Core types for hybrid-form-ai
  */
 
-/** Image input — file path, URL, Buffer, or Uint8Array */
-export type ImageInput = string | Buffer | Uint8Array;
+/** Single image input — file path, URL, Buffer, or Uint8Array */
+export type SingleImageInput = string | Buffer | Uint8Array;
+
+/** Image input — a single image or an ordered array of page images */
+export type ImageInput = SingleImageInput | SingleImageInput[];
 
 /** Per-field confidence score */
 export interface FieldConfidence {

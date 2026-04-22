@@ -7,7 +7,7 @@ import type {
 import type { FormAdapter } from '../adapters/base';
 import { SurveyJSAdapter } from '../adapters/surveyjs';
 import { JsonSchemaAdapter } from '../adapters/json-schema';
-import { preprocessImage, imageToBase64 } from '../utils/image';
+import { preprocessImage } from '../utils/image';
 import { detectUniqueId } from '../utils/qr';
 import { z } from 'zod';
 
@@ -229,9 +229,6 @@ export function createExtractor(config: ExtractorConfig) {
       // 4. Get output schema for validation
       const outputSchema = adapter.toOutputSchema(input.formDefinition);
 
-      // 5. Convert image to base64
-      const imageBase64 = await imageToBase64(image);
-
       // Retry loop (steps 4-7)
       const errors: string[] = [];
       let prompt = basePrompt;
@@ -240,7 +237,7 @@ export function createExtractor(config: ExtractorConfig) {
         try {
           // Call LLM provider
           const response = await provider.extractFromImage({
-            image: imageBase64,
+            image,
             prompt,
             systemPrompt,
           });

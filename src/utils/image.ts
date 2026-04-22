@@ -1,5 +1,5 @@
 import type { ImageInput } from '../core/types';
-import { resolveToBuffer } from './resolve-buffer';
+import { composeImageBuffers, resolveToBuffer } from './resolve-buffer';
 
 /**
  * Image preprocessing utilities.
@@ -29,10 +29,21 @@ function detectMime(buf: Buffer): string {
 
 /** Normalize an image input to a base64 data URL string */
 export async function imageToBase64(input: ImageInput): Promise<string> {
+  if (typeof input === 'string' && input.startsWith('data:')) {
+    return input;
+  }
   const buf = await resolveToBuffer(input);
   const mime = detectMime(buf);
   const b64 = buf.toString('base64');
   return `data:${mime};base64,${b64}`;
+}
+
+/** Normalize an image input to one or more base64 data URL strings. */
+export async function imageInputToBase64Urls(input: ImageInput): Promise<string[]> {
+  if (Array.isArray(input)) {
+    return Promise.all(input.map((item) => imageToBase64(item)));
+  }
+  return [await imageToBase64(input)];
 }
 
 /** Try to dynamically import sharp, returns null if unavailable */
@@ -48,9 +59,7 @@ async function tryLoadSharp(): Promise<any> {
 
 const MAX_DIMENSION = 2048;
 
-/** Optional preprocessing: resize, enhance contrast. Returns the original buffer if sharp is unavailable; otherwise returns a PNG-encoded buffer. */
-export async function preprocessImage(input: ImageInput): Promise<Buffer> {
-  const buf = await resolveToBuffer(input);
+async function preprocessSingleBuffer(buf: Buffer): Promise<Buffer> {
   const sharp = await tryLoadSharp();
   if (!sharp) return buf;
 
@@ -65,7 +74,16 @@ export async function preprocessImage(input: ImageInput): Promise<Buffer> {
       : pipeline.resize({ height: MAX_DIMENSION, withoutEnlargement: true });
   }
 
-  pipeline = pipeline.normalize();
+  return pipeline.normalize().png().toBuffer();
+}
 
-  return pipeline.png().toBuffer();
+/** Optional preprocessing: resize, enhance contrast. Returns processed buffer(s) while preserving multi-page inputs. */
+export async function preprocessImage(input: ImageInput): Promise<ImageInput> {
+  if (Array.isArray(input)) {
+    const buffers = await Promise.all(input.map((item) => resolveToBuffer(item)));
+    return Promise.all(buffers.map((buffer) => preprocessSingleBuffer(buffer)));
+  }
+
+  const buf = await resolveToBuffer(input);
+  return preprocessSingleBuffer(buf);
 }

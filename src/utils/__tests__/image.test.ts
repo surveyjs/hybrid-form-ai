@@ -50,6 +50,22 @@ describe('imageToBase64', () => {
     expect(result).toMatch(/^data:image\/gif;base64,/);
   });
 
+  it('returns data URLs unchanged', async () => {
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    await expect(imageToBase64(dataUrl)).resolves.toBe(dataUrl);
+  });
+
+  it('composes multiple images into a single PNG data URL', async () => {
+    const result = await imageToBase64([MINIMAL_PNG, MINIMAL_PNG]);
+    expect(result).toMatch(/^data:image\/png;base64,/);
+    const b64 = result.split(',')[1];
+    const composed = Buffer.from(b64, 'base64');
+    expect(composed[0]).toBe(0x89);
+    expect(composed[1]).toBe(0x50);
+    expect(composed[2]).toBe(0x4e);
+    expect(composed[3]).toBe(0x47);
+  });
+
   it('throws on unsupported format', async () => {
     const garbage = Buffer.from([0x00, 0x00, 0x00, 0x00]);
     await expect(imageToBase64(garbage)).rejects.toThrow('Unsupported image format');
@@ -69,6 +85,31 @@ describe('preprocessImage', () => {
     expect(result[1]).toBe(0x50);
     expect(result[2]).toBe(0x4e);
     expect(result[3]).toBe(0x47);
+  });
+
+  it('preprocesses multi-page images per page before composition', async () => {
+    const sharp = (await import('sharp')).default;
+    const createPage = (color: { r: number; g: number; b: number }) => sharp({
+      create: {
+        width: 1200,
+        height: 1600,
+        channels: 3,
+        background: color,
+      },
+    }).png().toBuffer();
+
+    const result = await preprocessImage([
+      await createPage({ r: 255, g: 255, b: 255 }),
+      await createPage({ r: 240, g: 240, b: 240 }),
+      await createPage({ r: 225, g: 225, b: 225 }),
+    ]);
+
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(3);
+
+    const metadataList = await Promise.all(result.map((page) => sharp(page).metadata()));
+    expect(metadataList.map((metadata) => metadata.width)).toEqual([1200, 1200, 1200]);
+    expect(metadataList.map((metadata) => metadata.height)).toEqual([1600, 1600, 1600]);
   });
 
   it('returns raw buffer unchanged when sharp is unavailable', async () => {

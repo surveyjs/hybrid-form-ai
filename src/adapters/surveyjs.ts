@@ -40,6 +40,8 @@ interface SurveyElement {
   elements?: SurveyElement[];
   templateElements?: SurveyElement[];
   multiSelect?: boolean;
+  showOtherItem?: boolean;
+  showNoneItem?: boolean;
   validators?: Array<Record<string, unknown>>;
 }
 
@@ -430,6 +432,8 @@ function elementToZod(el: SurveyElement): z.ZodTypeAny | null {
       return z.string();
     case 'radiogroup':
     case 'dropdown': {
+      // Fall back to z.string() when write-in options are allowed
+      if (el.showOtherItem || el.showNoneItem) return z.string();
       const vals = choiceValues(el.choices);
       if (vals.length >= 2) return z.enum(vals as [string, ...string[]]);
       return z.string();
@@ -504,7 +508,9 @@ export class SurveyJSAdapter implements FormAdapter {
     for (const el of elements) {
       const zodType = elementToZod(el);
       if (!zodType) continue;
-      shape[el.name] = el.isRequired ? zodType : zodType.optional();
+      // Always optional: isRequired is a form-submission concern, not an extraction concern.
+      // Paper forms can have blank required fields; partial extraction is valid.
+      shape[el.name] = zodType.optional();
     }
 
     return z.object(shape);

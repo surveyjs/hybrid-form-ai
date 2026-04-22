@@ -1,23 +1,36 @@
 import type { LLMProvider, LLMResponse, ProviderFactory } from './base';
 import type { ImageInput } from '../core/types';
+import { imageInputToBase64Urls, imageToBase64 } from '../utils/image';
 
 type AnthropicMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 const SUPPORTED_MEDIA_TYPES = new Set<string>(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
-function toBase64(image: ImageInput): { data: string; mediaType: AnthropicMediaType } {
-  if (typeof image === 'string') {
-    const match = image.match(/^data:([^;,]+)[^,]*;base64,(.+)$/);
-    if (match) {
-      const mediaType = match[1];
-      if (!SUPPORTED_MEDIA_TYPES.has(mediaType)) {
-        throw new Error(`Unsupported media type "${mediaType}". Anthropic supports: ${[...SUPPORTED_MEDIA_TYPES].join(', ')}`);
-      }
-      return { data: match[2], mediaType: mediaType as AnthropicMediaType };
-    }
-    throw new Error('Anthropic provider requires a base64 data URL, Buffer, or Uint8Array. HTTP URLs and file paths are not supported directly.');
+async function toBase64(image: ImageInput): Promise<{ data: string; mediaType: AnthropicMediaType }> {
+  if (Buffer.isBuffer(image) || image instanceof Uint8Array) {
+    const buffer = Buffer.isBuffer(image) ? image : Buffer.from(image);
+    return { data: buffer.toString('base64'), mediaType: 'image/png' };
   }
-  const buffer = Buffer.isBuffer(image) ? image : Buffer.from(image);
-  return { data: buffer.toString('base64'), mediaType: 'image/png' };
+
+  const dataUrl = typeof image === 'string' && image.startsWith('data:')
+    ? image
+    : await imageToBase64(image);
+  const match = dataUrl.match(/^data:([^;,]+)[^,]*;base64,(.+)$/);
+  if (!match) {
+    throw new Error('Anthropic provider requires a base64 data URL, Buffer, Uint8Array, file path, or image array input.');
+  }
+  const mediaType = match[1];
+  if (!SUPPORTED_MEDIA_TYPES.has(mediaType)) {
+    throw new Error(`Unsupported media type "${mediaType}". Anthropic supports: ${[...SUPPORTED_MEDIA_TYPES].join(', ')}`);
+  }
+  return { data: match[2], mediaType: mediaType as AnthropicMediaType };
+}
+
+async function toBase64List(image: ImageInput): Promise<Array<{ data: string; mediaType: AnthropicMediaType }>> {
+  if (Array.isArray(image)) {
+    const dataUrls = await imageInputToBase64Urls(image);
+    return Promise.all(dataUrls.map((dataUrl) => toBase64(dataUrl)));
+  }
+  return [await toBase64(image)];
 }
 
 /**
@@ -48,7 +61,7 @@ export const anthropic: ProviderFactory = (model = 'claude-sonnet-4-6', _options
       }
 
       const client = new Anthropic({ apiKey });
-      const { data, mediaType } = toBase64(params.image);
+      const images = await toBase64List(params.image);
 
       try {
         const response = await client.messages.create({
@@ -59,10 +72,10 @@ export const anthropic: ProviderFactory = (model = 'claude-sonnet-4-6', _options
             {
               role: 'user',
               content: [
-                {
-                  type: 'image',
-                  source: { type: 'base64', media_type: mediaType, data },
-                },
+                ...images.map(({ data, mediaType }) => ({
+                  type: 'image' as const,
+                  source: { type: 'base64' as const, media_type: mediaType, data },
+                })),
                 { type: 'text', text: params.prompt + '\n\nIMPORTANT: Return ONLY the raw JSON object. Do NOT include any explanation, markdown formatting, or code fences.' },
               ],
             },

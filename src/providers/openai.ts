@@ -1,16 +1,23 @@
 import type { LLMProvider, LLMResponse, ProviderFactory } from './base';
 import type { ImageInput } from '../core/types';
+import { imageInputToBase64Urls, imageToBase64 } from '../utils/image';
 
-function toBase64DataUrl(image: ImageInput): string {
-  if (typeof image === 'string') {
-    if (image.startsWith('data:') || image.startsWith('http://') || image.startsWith('https://')) {
-      return image;
-    }
-    // Assume file path — read not supported here; caller should pass buffer or data URL
-    throw new Error('OpenAI provider requires a base64 data URL, Buffer, or Uint8Array. File paths are not supported directly.');
+async function toBase64DataUrl(image: ImageInput): Promise<string> {
+  if (typeof image === 'string' && (image.startsWith('data:') || image.startsWith('http://') || image.startsWith('https://'))) {
+    return image;
   }
-  const buffer = Buffer.isBuffer(image) ? image : Buffer.from(image);
-  return `data:image/png;base64,${buffer.toString('base64')}`;
+  if (Buffer.isBuffer(image) || image instanceof Uint8Array) {
+    const buffer = Buffer.isBuffer(image) ? image : Buffer.from(image);
+    return `data:image/png;base64,${buffer.toString('base64')}`;
+  }
+  return imageToBase64(image);
+}
+
+async function toBase64DataUrls(image: ImageInput): Promise<string[]> {
+  if (Array.isArray(image)) {
+    return imageInputToBase64Urls(image);
+  }
+  return [await toBase64DataUrl(image)];
 }
 
 /**
@@ -40,7 +47,7 @@ export const openai: ProviderFactory = (model = 'gpt-4o', _options = {}) => {
       }
 
       const client = new OpenAI({ apiKey });
-      const imageUrl = toBase64DataUrl(params.image);
+      const imageUrls = await toBase64DataUrls(params.image);
 
       const messages: Array<{ role: string; content: unknown }> = [];
       if (params.systemPrompt) {
@@ -50,7 +57,7 @@ export const openai: ProviderFactory = (model = 'gpt-4o', _options = {}) => {
         role: 'user',
         content: [
           { type: 'text', text: params.prompt },
-          { type: 'image_url', image_url: { url: imageUrl } },
+          ...imageUrls.map((url) => ({ type: 'image_url', image_url: { url } })),
         ],
       });
 

@@ -10,6 +10,11 @@ const TINY_PNG = Buffer.from(
   'base64',
 );
 
+const VALID_TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 function createMockProvider(responses: Array<{ content: string; truncated?: boolean; usage?: { promptTokens: number; completionTokens: number; totalTokens: number } }>): LLMProvider {
   let callIndex = 0;
   return {
@@ -165,6 +170,22 @@ const signaturePadSurveyDef = {
           title: 'Customer Signature',
           isRequired: true,
         },
+      ],
+    },
+  ],
+};
+
+const multiPageSurveyDef = {
+  pages: [
+    {
+      elements: [
+        { type: 'text', name: 'fullName', title: 'Full Name', isRequired: true },
+      ],
+    },
+    {
+      elements: [
+        { type: 'text', name: 'highestEducation', title: 'Highest Education', isRequired: true },
+        { type: 'comment', name: 'reference3', title: 'Reference 3', isRequired: true },
       ],
     },
   ],
@@ -507,6 +528,39 @@ describe('createExtractor', () => {
         studentName: 'John Doe',
         notes: 'Bring lunch',
       });
+    });
+
+    it('accepts an ordered array of page images for multi-page forms', async () => {
+      const provider = createMockProvider([
+        {
+          content: JSON.stringify({
+            fullName: 'John Doe',
+            highestEducation: 'Bachelor\'s Degree',
+            reference3: 'Jane Smith, Manager, 555-1234',
+          }),
+        },
+      ]);
+
+      const extractor = createExtractor({
+        provider,
+        adapter: 'surveyjs',
+        options: { preprocessImage: false },
+      });
+
+      const result = await extractor.extractFromImage({
+        image: [VALID_TINY_PNG, VALID_TINY_PNG, VALID_TINY_PNG],
+        formDefinition: multiPageSurveyDef,
+      });
+
+      expect(result.data).toEqual({
+        fullName: 'John Doe',
+        highestEducation: 'Bachelor\'s Degree',
+        reference3: 'Jane Smith, Manager, 555-1234',
+      });
+
+      const call = (provider.extractFromImage as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(Array.isArray(call.image)).toBe(true);
+      expect(call.image).toHaveLength(3);
     });
   });
 

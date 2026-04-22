@@ -15,6 +15,7 @@ A lightweight, open-source alternative to enterprise IDP solutions like Rossum, 
 - **SurveyJS-first** — First-class adapter for SurveyJS JSON form definitions
 - **Multi-provider LLMs** — OpenAI, Anthropic, Ollama (local models) out of the box
 - **Intelligent extraction** — Text, checkboxes, tables, handwriting from scanned forms
+- **Multi-page extraction** — Pass an ordered array of page images for multi-page paper forms
 - **QR / unique ID detection** — Automatic form identification from images
 - **Confidence scoring** — Flag low-confidence fields for human review
 - **Response merging** — Combine online + paper responses by unique ID
@@ -43,8 +44,11 @@ const extractor = createExtractor({
   }
 });
 
-// 2. Load your scanned form image and form definition
-const image = readFileSync('./scanned-form.png');
+// 2. Load your scanned form image(s) and form definition
+const image = [
+  readFileSync('./scanned-form-page-1.png'),
+  readFileSync('./scanned-form-page-2.png'),
+];
 const formDefinition = JSON.parse(readFileSync('./survey.json', 'utf-8'));
 
 // 3. Extract structured data from the image
@@ -56,6 +60,9 @@ const result = await extractor.extractFromImage({
 console.log(result.data);          // Structured responses matching schema
 console.log(result.uniqueId);      // Detected QR / barcode ID
 console.log(result.confidence);    // Per-field confidence scores
+
+// Single-page forms are also supported:
+// image: readFileSync('./scanned-form.png')
 ```
 
 ## Switching Providers
