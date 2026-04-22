@@ -434,6 +434,36 @@ describe('SurveyJSAdapter.toOutputSchema', () => {
     expect(schema.safeParse({ customerSignature: 123 }).success).toBe(false);
   });
 
+  it('ignores non-array rows metadata during normalization', () => {
+    const form = {
+      pages: [{
+        name: 'page1',
+        elements: [
+          { type: 'comment', name: 'notes', title: 'Notes', rows: 2 },
+          { type: 'text', name: 'studentName', title: 'Student Name', isRequired: true },
+        ],
+      }],
+    };
+
+    const normalized = adapter.normalizeResponseData(form, {
+      'Student Name': 'John Doe',
+      Notes: 'Bring lunch',
+    });
+
+    const schema = adapter.toOutputSchema(form);
+    const result = schema.safeParse(normalized);
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error('Expected normalization with numeric rows metadata to succeed');
+    }
+
+    expect(result.data).toEqual({
+      studentName: 'John Doe',
+      notes: 'Bring lunch',
+    });
+  });
+
   it('maps inputType=number to z.number()', () => {
     const form = {
       pages: [{

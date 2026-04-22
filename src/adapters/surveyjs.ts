@@ -89,17 +89,17 @@ function mapNameTitleArray(
 }
 
 function itemValueEntries(
-  values?: Array<string | SurveyChoice | SurveyRow>,
+  values?: Array<string | SurveyChoice | SurveyRow> | unknown,
 ): Array<{ name: string; title?: string }> {
-  if (!values) return [];
+  if (!Array.isArray(values)) return [];
   return values.map((value) => {
     if (typeof value === 'string') return { name: value };
     return { name: String(value.value), title: value.text };
   });
 }
 
-function columnEntries(columns?: Array<string | SurveyColumn>): Array<{ name: string; title?: string }> {
-  if (!columns) return [];
+function columnEntries(columns?: Array<string | SurveyColumn> | unknown): Array<{ name: string; title?: string }> {
+  if (!Array.isArray(columns)) return [];
   return columns
     .filter((col): col is SurveyColumn => typeof col !== 'string')
     .map((col) => {
@@ -209,8 +209,8 @@ function normalizeSurveyResponseByNameTitle(
   return normalizedRoot;
 }
 
-function choiceLabels(choices?: Array<string | SurveyChoice>): string[] {
-  if (!choices) return [];
+function choiceLabels(choices?: Array<string | SurveyChoice> | unknown): string[] {
+  if (!Array.isArray(choices)) return [];
   return choices.map(c => {
     if (typeof c === 'string') return c;
     if (c.text && c.text !== String(c.value)) return `${c.value} (${c.text})`;
@@ -218,13 +218,13 @@ function choiceLabels(choices?: Array<string | SurveyChoice>): string[] {
   });
 }
 
-function choiceValues(choices?: Array<string | SurveyChoice>): string[] {
-  if (!choices) return [];
+function choiceValues(choices?: Array<string | SurveyChoice> | unknown): string[] {
+  if (!Array.isArray(choices)) return [];
   return choices.map(c => (typeof c === 'string' ? c : String(c.value)));
 }
 
-function rowLabels(rows?: Array<string | SurveyRow>): string[] {
-  if (!rows) return [];
+function rowLabels(rows?: Array<string | SurveyRow> | unknown): string[] {
+  if (!Array.isArray(rows)) return [];
   return rows.map(r => {
     if (typeof r === 'string') return r;
     if (r.text && r.text !== String(r.value)) return `${r.value} (${r.text})`;
@@ -232,8 +232,8 @@ function rowLabels(rows?: Array<string | SurveyRow>): string[] {
   });
 }
 
-function columnLabels(columns?: Array<string | SurveyColumn>): string[] {
-  if (!columns) return [];
+function columnLabels(columns?: Array<string | SurveyColumn> | unknown): string[] {
+  if (!Array.isArray(columns)) return [];
   return columns.map(c => {
     if (typeof c === 'string') return c;
     const key = c.name ?? String(c.value ?? '');

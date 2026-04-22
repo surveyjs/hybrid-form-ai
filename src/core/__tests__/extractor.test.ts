@@ -170,6 +170,17 @@ const signaturePadSurveyDef = {
   ],
 };
 
+const commentRowsMetadataSurveyDef = {
+  pages: [
+    {
+      elements: [
+        { type: 'comment', name: 'notes', title: 'Notes', rows: 2 },
+        { type: 'text', name: 'studentName', title: 'Student Name', isRequired: true },
+      ],
+    },
+  ],
+};
+
 const simpleJsonSchemaDef = {
   type: 'object',
   properties: {
@@ -468,6 +479,33 @@ describe('createExtractor', () => {
 
       expect(result.data).toEqual({
         customerSignature: base64Signature,
+      });
+    });
+
+    it('does not fail on numeric comment rows metadata during normalization', async () => {
+      const provider = createMockProvider([
+        {
+          content: JSON.stringify({
+            'Student Name': 'John Doe',
+            Notes: 'Bring lunch',
+          }),
+        },
+      ]);
+
+      const extractor = createExtractor({
+        provider,
+        adapter: 'surveyjs',
+        options: { preprocessImage: false },
+      });
+
+      const result = await extractor.extractFromImage({
+        image: TINY_PNG,
+        formDefinition: commentRowsMetadataSurveyDef,
+      });
+
+      expect(result.data).toEqual({
+        studentName: 'John Doe',
+        notes: 'Bring lunch',
       });
     });
   });
