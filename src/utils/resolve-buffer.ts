@@ -17,9 +17,18 @@ function decodeDataUrl(input: string): Buffer | null {
   const header = input.slice(0, commaIndex);
   const payload = input.slice(commaIndex + 1);
   if (header.includes(';base64')) {
+    // Estimate decoded byte size (base64: ~3/4 of encoded length) before allocating.
+    const estimatedBytes = Math.ceil(payload.length * 3 / 4);
+    if (estimatedBytes > MAX_FETCH_BYTES) {
+      throw new Error(`Data URL payload exceeds the maximum allowed size of ${MAX_FETCH_BYTES} bytes`);
+    }
     return Buffer.from(payload, 'base64');
   }
 
+  // For plain-text data URLs, check the encoded length before decoding.
+  if (payload.length > MAX_FETCH_BYTES) {
+    throw new Error(`Data URL payload exceeds the maximum allowed size of ${MAX_FETCH_BYTES} bytes`);
+  }
   return Buffer.from(decodeURIComponent(payload), 'utf8');
 }
 
