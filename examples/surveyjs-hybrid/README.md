@@ -1,4 +1,4 @@
-# SurveyJS Hybrid Example
+# SurveyJS Paper Form Data Extraction Example
 
 End-to-end example: extract structured data from a scanned SurveyJS form using OpenAI.
 

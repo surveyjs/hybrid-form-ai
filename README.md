@@ -1,21 +1,21 @@
-# ai-form-response-extractor
+# AI Form Response Extractor by SurveyJS
 
 [![CI](https://github.com/surveyjs/ai-form-response-extractor/actions/workflows/ci.yml/badge.svg)](https://github.com/surveyjs/ai-form-response-extractor/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/ai-form-response-extractor.svg)](https://www.npmjs.com/package/ai-form-response-extractor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Hybrid paper + digital form collection powered by multimodal LLMs.**
+**Extract structured survey responses from paper forms, PDFs, and images using multimodal LLMs.**
 
-Design a form once, collect responses online *and* on paper, then use AI to extract structured data from scanned/photographed paper forms and merge everything together.
+This library enables hybrid paper + digital form workflows in your application. You define a form once as a JSON schema, collect responses online and on paper, and then extract structured data from scanned or photographed paper forms (or digital PDFs) using AI. The extracted answers are mapped back to the original form structure, producing a unified response object that can be stored and processed alongside online submissions.
 
-A lightweight, open-source alternative to enterprise IDP solutions like Rossum, ABBYY FlexiCapture, and Hyperscience.
+This approach is designed as a lightweight, open-source alternative to enterprise IDP solutions like Rossum, ABBYY FlexiCapture, and Hyperscience.
 
 ## Features
 
 - **SurveyJS-first** — First-class adapter for SurveyJS JSON form definitions
 - **Multi-provider LLMs** — OpenAI, Anthropic, Ollama (local models) out of the box
 - **Intelligent extraction** — Text, checkboxes, tables, handwriting from scanned forms
-- **Multi-page extraction** — Pass an ordered array of page images for multi-page paper forms
+- **Multi-page extraction** — Pass a PDF document or an ordered array of page images for multi-page paper forms
 - **Native PDF extraction** — Pass digital PDFs or scanned-image PDFs directly to providers that support document inputs
 - **QR / unique ID detection** — Automatic form identification from images
 - **Confidence scoring** — Flag low-confidence fields for human review
@@ -64,9 +64,10 @@ console.log(result.confidence);    // Per-field confidence scores
 
 // Single-page forms are also supported:
 // image: readFileSync('./scanned-form.png')
+
 // Native PDF is also supported for providers with document input support:
-// image: readFileSync('./digital-form.pdf')          // text-based (digital) PDF
-// image: readFileSync('./scanned-form.pdf')         // PDF containing scanned page images
+// image: readFileSync('./digital-form.pdf')   // text-based (digital) PDF
+// image: readFileSync('./scanned-form.pdf')   // PDF containing scanned page images
 ```
 
 ## PDF Provider Notes
@@ -114,8 +115,7 @@ const merged = mergeResponses(onlineResponses, paperExtractions);
 
 ## Limitations
 
-- `signature` and `signaturepad` fields are intentionally not extracted.
-- Signatures belong to the source document context and do not make sense as standalone structured data without the original document.
+- Signature fields are not extracted as structured data because they represent a visual verification element rather than a semantically structured answer. In most survey workflows, signatures are treated as document evidence rather than data fields.
 
 ## Environment Variables
 
