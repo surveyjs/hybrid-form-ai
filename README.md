@@ -16,7 +16,7 @@ A lightweight, open-source alternative to enterprise IDP solutions like Rossum, 
 - **Multi-provider LLMs** — OpenAI, Anthropic, Ollama (local models) out of the box
 - **Intelligent extraction** — Text, checkboxes, tables, handwriting from scanned forms
 - **Multi-page extraction** — Pass an ordered array of page images for multi-page paper forms
-- **Native PDF extraction** — Pass digital PDFs directly to providers that support document inputs
+- **Native PDF extraction** — Pass digital PDFs or scanned-image PDFs directly to providers that support document inputs
 - **QR / unique ID detection** — Automatic form identification from images
 - **Confidence scoring** — Flag low-confidence fields for human review
 - **Response merging** — Combine online + paper responses by unique ID
@@ -65,13 +65,16 @@ console.log(result.confidence);    // Per-field confidence scores
 // Single-page forms are also supported:
 // image: readFileSync('./scanned-form.png')
 // Native PDF is also supported for providers with document input support:
-// image: readFileSync('./digital-form.pdf')
+// image: readFileSync('./digital-form.pdf')          // text-based (digital) PDF
+// image: readFileSync('./scanned-form.pdf')         // PDF containing scanned page images
 ```
 
 ## PDF Provider Notes
 
-- OpenAI provider: supports native PDF input.
-- Anthropic provider: supports native PDF input.
+Both **digital PDFs** (text/vector content) and **scanned-image PDFs** (pages stored as raster images inside a PDF container) are accepted. Pass either as a `Buffer` via `readFileSync()` — the library forwards the raw PDF bytes to the provider without rasterizing.
+
+- OpenAI provider: supports native PDF input (digital and scanned-image PDFs).
+- Anthropic provider: supports native PDF input (digital and scanned-image PDFs).
 - Ollama provider: current API path is image-only and does not accept native PDF input.
 
 ## Switching Providers

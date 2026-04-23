@@ -18,9 +18,9 @@ Provide a simple, flexible, and cost-effective open-source alternative to expens
 
 - Generic support for JSON form definitions with **first-class SurveyJS adapter**
 - Swappable multimodal LLM providers (OpenAI, Anthropic, Ollama, and more)
-- Intelligent extraction from scanned/photographed forms and digital PDFs (text, checkboxes, tables, handwriting)
+- Intelligent extraction from scanned/photographed forms, digital PDFs, and scanned-image PDFs (text, checkboxes, tables, handwriting)
 - Automatic unique ID / QR code detection from images
-- Native PDF support for providers that accept PDF documents directly
+- Native PDF support for providers that accept PDF documents directly (both text-based digital PDFs and scanned-image PDFs)
 - Schema-aware prompting and structured JSON output
 - Confidence scoring and low-confidence field flagging
 - Response merging utility (online + paper responses)
@@ -96,10 +96,13 @@ console.log(result.data);               // Structured responses matching form sc
 - **JSON Schema Adapter**: Support for standard JSON Schema.
 - **Custom Adapter**: Simple interface for users to define their own mapping.
 
-## 6.1 Digital PDF Support
+## 6.1 PDF Support (Digital and Scanned-Image)
 
 - `extractFromImage()` remains the stable API name for backward compatibility.
-- Digital PDFs are passed to providers as native PDF document inputs whenever the provider supports it.
+- Two PDF variants are supported:
+  - **Digital PDFs** — text and vector content embedded as readable data.
+  - **Scanned-image PDFs** — pages stored as raster images inside a PDF container (e.g., a scanned paper form saved as PDF).
+- Both variants are forwarded to the provider as raw PDF bytes without prior rasterization. Providers capable of native PDF input handle the rendering internally.
 - The core extractor no longer rasterizes PDF files into page images.
 - Provider capability differs by backend:
   - OpenAI: uses native PDF document input when PDF media is present.
