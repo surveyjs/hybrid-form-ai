@@ -9,22 +9,29 @@ import { resolveToBuffer } from './resolve-buffer';
 
 /** Detect MIME type from magic bytes */
 function detectMime(buf: Buffer): string {
-  if (buf.length >= 4 && buf.subarray(0, 4).toString('ascii') === '%PDF') {
+  // PDF header may appear after leading bytes/comments. Accept signatures within first 4KB.
+  const pdfHeaderIndex = buf.indexOf('%PDF-', 0, 'ascii');
+  if (pdfHeaderIndex >= 0 && pdfHeaderIndex <= 4096) {
     return 'application/pdf';
   }
-  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+  const pdfPrefixIndex = buf.indexOf('%PDF', 0, 'ascii');
+  if (pdfPrefixIndex >= 0 && pdfPrefixIndex <= 4096) {
+    return 'application/pdf';
+  }
+  if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
     return 'image/png';
   }
-  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
     return 'image/jpeg';
   }
   if (
+    buf.length >= 12 &&
     buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
     buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50
   ) {
     return 'image/webp';
   }
-  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) {
+  if (buf.length >= 4 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) {
     return 'image/gif';
   }
   throw new Error('Unsupported image format: could not detect MIME type from magic bytes');

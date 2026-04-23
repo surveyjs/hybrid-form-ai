@@ -41,6 +41,15 @@ describe('imageToBase64', () => {
     expect(result).toMatch(/^data:application\/pdf;base64,/);
   });
 
+  it('detects PDF MIME type when PDF header is not at byte 0', async () => {
+    const prefixedPdf = Buffer.concat([
+      Buffer.from([0x00, 0x01, 0x02, 0x03, 0x0a]),
+      MINIMAL_PDF,
+    ]);
+    const result = await imageToBase64(prefixedPdf);
+    expect(result).toMatch(/^data:application\/pdf;base64,/);
+  });
+
   it('detects WebP MIME type', async () => {
     // Minimal WebP-like magic bytes: RIFF....WEBP
     const webpBuf = Buffer.alloc(16);
