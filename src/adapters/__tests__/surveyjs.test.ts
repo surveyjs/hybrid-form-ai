@@ -184,7 +184,7 @@ describe('SurveyJSAdapter.toPrompt', () => {
     expect(prompt).not.toContain('"addressPanel"');
   });
 
-  it('skips signature, html, image, file types', () => {
+  it('skips signature, signaturepad, html, image, file types', () => {
     const form = {
       pages: [
         {
@@ -192,6 +192,7 @@ describe('SurveyJSAdapter.toPrompt', () => {
           elements: [
             { type: 'text', name: 'name', title: 'Name', isRequired: true },
             { type: 'signature', name: 'sig', title: 'Signature' },
+            { type: 'signaturepad', name: 'sigPad', title: 'Signature Pad' },
             { type: 'html', name: 'info', html: '<p>Info</p>' },
             { type: 'image', name: 'logo' },
             { type: 'file', name: 'attachment' },
@@ -202,6 +203,7 @@ describe('SurveyJSAdapter.toPrompt', () => {
     const prompt = adapter.toPrompt(form);
     expect(prompt).toContain('"name"');
     expect(prompt).not.toContain('"sig"');
+    expect(prompt).not.toContain('"sigPad"');
     expect(prompt).not.toContain('"info"');
     expect(prompt).not.toContain('"logo"');
     expect(prompt).not.toContain('"attachment"');
@@ -316,7 +318,7 @@ describe('SurveyJSAdapter.toPrompt', () => {
     expect(adapter.toPrompt({})).toBe('');
   });
 
-  it('describes signaturepad as base64 string field', () => {
+  it('skips signaturepad fields in prompt generation', () => {
     const form = {
       pages: [{
         name: 'page1',
@@ -327,9 +329,8 @@ describe('SurveyJSAdapter.toPrompt', () => {
     };
 
     const prompt = adapter.toPrompt(form);
-    expect(prompt).toContain('"customerSignature"');
-    expect(prompt).toContain('signature pad');
-    expect(prompt).toContain('base64-encoded image string');
+    expect(prompt).not.toContain('"customerSignature"');
+    expect(prompt).not.toContain('signature pad');
   });
 });
 
@@ -398,13 +399,14 @@ describe('SurveyJSAdapter.toOutputSchema', () => {
     expect(schema.safeParse(noZip).success).toBe(true);
   });
 
-  it('skips signature, html, image, file types', () => {
+  it('skips signature, signaturepad, html, image, file types', () => {
     const form = {
       pages: [{
         name: 'page1',
         elements: [
           { type: 'text', name: 'name', title: 'Name', isRequired: true },
           { type: 'signature', name: 'sig' },
+          { type: 'signaturepad', name: 'sigPad' },
           { type: 'html', name: 'info' },
           { type: 'image', name: 'pic' },
           { type: 'file', name: 'doc' },
@@ -415,12 +417,13 @@ describe('SurveyJSAdapter.toOutputSchema', () => {
     const keys = Object.keys(schema.shape);
     expect(keys).toContain('name');
     expect(keys).not.toContain('sig');
+    expect(keys).not.toContain('sigPad');
     expect(keys).not.toContain('info');
     expect(keys).not.toContain('pic');
     expect(keys).not.toContain('doc');
   });
 
-  it('handles signaturepad as base64 string', () => {
+  it('does not include signaturepad in output schema', () => {
     const form = {
       pages: [{
         name: 'page1',
@@ -431,8 +434,12 @@ describe('SurveyJSAdapter.toOutputSchema', () => {
     };
 
     const schema = adapter.toOutputSchema(form);
-    expect(schema.safeParse({ customerSignature: 'iVBORw0KGgoAAAANSUhEUgAAAAUA' }).success).toBe(true);
-    expect(schema.safeParse({ customerSignature: 123 }).success).toBe(false);
+    const parsed = schema.safeParse({ customerSignature: 'iVBORw0KGgoAAAANSUhEUgAAAAUA' });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) {
+      throw new Error('Expected schema parse to succeed');
+    }
+    expect(parsed.data).toEqual({});
   });
 
   it('ignores non-array rows metadata during normalization', () => {
@@ -1020,7 +1027,7 @@ describe('SurveyJSAdapter.toOutputSchema', () => {
     });
   });
 
-  it('normalizes signaturepad raw base64 by trimming whitespace', () => {
+  it('leaves unsupported signaturepad data untouched during normalization', () => {
     const form = {
       pages: [{
         name: 'page1',
@@ -1035,46 +1042,7 @@ describe('SurveyJSAdapter.toOutputSchema', () => {
     });
 
     expect(normalized).toEqual({
-      customerSignature: 'iVBORw0KGgoAAAANSUhEUgAAAAUA',
-    });
-  });
-
-  it('keeps signaturepad jpeg-like base64 payload as raw base64', () => {
-    const form = {
-      pages: [{
-        name: 'page1',
-        elements: [
-          { type: 'signaturepad', name: 'customerSignature', title: 'Customer Signature', isRequired: true },
-        ],
-      }],
-    };
-
-    const normalized = adapter.normalizeResponseData(form, {
-      customerSignature: '/9J/4AAQSkZJRgABAQAAAQABAAD',
-    });
-
-    expect(normalized).toEqual({
-      customerSignature: '/9J/4AAQSkZJRgABAQAAAQABAAD',
-    });
-  });
-
-  it('strips signaturepad data URL prefix to raw base64', () => {
-    const form = {
-      pages: [{
-        name: 'page1',
-        elements: [
-          { type: 'signaturepad', name: 'customerSignature', title: 'Customer Signature', isRequired: true },
-        ],
-      }],
-    };
-
-    const existingDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
-    const normalized = adapter.normalizeResponseData(form, {
-      customerSignature: existingDataUrl,
-    });
-
-    expect(normalized).toEqual({
-      customerSignature: 'iVBORw0KGgoAAAANSUhEUgAAAAUA',
+      customerSignature: '  iVBORw0KGgoAAAANSUhEUgAAAAUA  ',
     });
   });
 });

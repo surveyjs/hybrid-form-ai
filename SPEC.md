@@ -91,7 +91,8 @@ console.log(result.data);               // Structured responses matching form sc
   - Matrix column keys: column `title`/`text` -> column `name` (or `value` when `name` is absent)
   - Matrix row keys: row `text` -> row `value`
   - Choice values for `radiogroup`, `dropdown`, `checkbox`, `tagbox`, `ranking`, `imagepicker`: display `text` -> canonical `value`
-  - `signaturepad` fields: captured signature image -> Base64 string value
+  - `signature` and `signaturepad` fields are intentionally unsupported and skipped
+    - Rationale: a signature only makes sense as part of the source document context and should be validated on the document itself, not extracted as standalone data
 - **JSON Schema Adapter**: Support for standard JSON Schema.
 - **Custom Adapter**: Simple interface for users to define their own mapping.
 

@@ -479,7 +479,7 @@ describe('createExtractor', () => {
       });
     });
 
-    it('extracts signaturepad as base64 string value', async () => {
+    it('ignores unsupported signaturepad fields in extracted output', async () => {
       const base64Signature = 'iVBORw0KGgoAAAANSUhEUgAAAAUA';
       const provider = createMockProvider([
         {
@@ -500,9 +500,7 @@ describe('createExtractor', () => {
         formDefinition: signaturePadSurveyDef,
       });
 
-      expect(result.data).toEqual({
-        customerSignature: base64Signature,
-      });
+      expect(result.data).toEqual({});
     });
 
     it('does not fail on numeric comment rows metadata during normalization', async () => {
@@ -1086,7 +1084,7 @@ describe('createExtractor', () => {
       expect(call.systemPrompt).not.toContain('signaturepad fields');
     });
 
-    it('adds signaturepad-specific guidance with field names and labels', async () => {
+    it('does not add signaturepad-specific guidance', async () => {
       const provider = createMockProvider([
         { content: JSON.stringify({ customerSignature: 'iVBORw0KGgoAAAANSUhEUgAAAAUA' }) },
       ]);
@@ -1103,10 +1101,10 @@ describe('createExtractor', () => {
       });
 
       const call = (provider.extractFromImage as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(call.systemPrompt).toContain('For signaturepad fields');
-      expect(call.systemPrompt).toContain('actual handwritten signature marks');
-      expect(call.systemPrompt).toContain('Base64-encoded image string');
-      expect(call.systemPrompt).toContain('"customerSignature" (label: "Customer Signature")');
+      expect(call.systemPrompt).not.toContain('signaturepad fields');
+      expect(call.systemPrompt).not.toContain('actual handwritten signature marks');
+      expect(call.systemPrompt).not.toContain('Base64-encoded image string');
+      expect(call.systemPrompt).not.toContain('"customerSignature" (label: "Customer Signature")');
     });
   });
 });
