@@ -109,6 +109,11 @@ const merged = mergeResponses(onlineResponses, paperExtractions);
 | `json-schema` | Standard JSON Schema support |
 | `custom` | Bring your own adapter via a simple interface |
 
+## Limitations
+
+- `signature` and `signaturepad` fields are intentionally not extracted.
+- Signatures belong to the source document context and do not make sense as standalone structured data without the original document.
+
 ## Environment Variables
 
 | Variable | Description |

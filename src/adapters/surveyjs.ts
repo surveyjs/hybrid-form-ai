@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { FormAdapter } from './base';
 
-const SKIP_TYPES = new Set(['signature', 'html', 'image', 'file']);
+const SKIP_TYPES = new Set(['signature', 'signaturepad', 'html', 'image', 'file']);
 
 interface SurveyChoice {
   value: string | number;
@@ -139,25 +139,6 @@ function mapNameTitleKeys(
   return normalized;
 }
 
-function normalizeSignaturepadValue(value: unknown): unknown {
-  if (typeof value !== 'string') {
-    return value;
-  }
-
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return trimmed;
-  }
-
-  // Normalized extractor output expects a raw base64 signature string.
-  if (trimmed.startsWith('data:image/')) {
-    const match = trimmed.match(/^data:image\/[^;]*;base64,(.+)$/);
-    return match ? match[1] : trimmed;
-  }
-
-  return trimmed;
-}
-
 function normalizeSurveyResponseByNameTitle(
   value: unknown,
   elements: SurveyElement[],
@@ -226,9 +207,6 @@ function normalizeSurveyResponseByNameTitle(
       }
     }
 
-    if (el.type === 'signaturepad') {
-      normalizedRoot[el.name] = normalizeSignaturepadValue(normalizedRoot[el.name]);
-    }
   }
 
   return normalizedRoot;
@@ -337,12 +315,6 @@ function describeElement(el: SurveyElement, index: number): string {
     }
     case 'boolean':
       lines.push('   Type: boolean (true/false)', '   Expected value: true or false');
-      break;
-    case 'signaturepad':
-      lines.push(
-        '   Type: signature pad',
-        '   Expected value: a base64-encoded image string of the captured signature',
-      );
       break;
     case 'matrix': {
       const r = rowLabels(el.rows);
@@ -468,8 +440,6 @@ function elementToZod(el: SurveyElement): z.ZodTypeAny | null {
       return z.number();
     case 'boolean':
       return z.boolean();
-    case 'signaturepad':
-      return z.string();
     case 'matrix':
       return z.record(z.string());
     case 'matrixdynamic':
